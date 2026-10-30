@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tgz
+.DS_Store
+Thumbs.db
+*.log
+test-output/
+.preview/
+# 桌宠素材的中间产物（原图 / 切片 / 预览）：体积大、非发布物，只保留 assets/pet 里的成品
+temp/

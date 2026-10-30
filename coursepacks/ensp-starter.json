@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "ensp-starter",
+  "name": "eNSP 入门实验通用课程包",
+  "version": "0.1.0",
+  "software": {
+    "name": "eNSP",
+    "required": true,
+    "notes": "不绑定具体软件版本；运行前必须先执行只读环境检查，并按课程要求核对版本组合。"
+  },
+  "modes": ["guided", "automatic", "mixed"],
+  "steps": [
+    {
+      "id": "launch-ensp",
+      "title": "启动 eNSP",
+      "instruction": "由用户确认后启动 eNSP。若启动失败，保留错误信息并先生成只读诊断报告，不要反复卸载重装。",
+      "expected": "出现 eNSP 主界面，且没有未处理的启动错误。",
+      "evidence": ["主界面截图", "错误信息（如有）"]
+    },
+    {
+      "id": "create-topology",
+      "title": "创建实验拓扑",
+      "instruction": "按实验指导书选择设备并完成连线。详细指导模式下高亮目标设备，不代替用户点击。",
+      "expected": "拓扑与指导书要求一致，设备图标与连线完整。",
+      "evidence": ["拓扑截图"]
+    },
+    {
+      "id": "start-devices",
+      "title": "启动设备",
+      "instruction": "启动拓扑中的设备并等待状态稳定。若设备无法启动，记录具体设备、错误提示和当前版本组合。",
+      "expected": "设备进入可配置状态。",
+      "evidence": ["设备状态截图"]
+    },
+    {
+      "id": "verify-results",
+      "title": "验证实验结果",
+      "instruction": "按课程要求执行验证命令或测试连通性，保存真实输出。不得用预期结果替代实际结果。",
+      "expected": "实验结果满足指导书中的验证条件。",
+      "evidence": ["命令输出", "验证截图"]
+    }
+  ],
+  "reportSections": [
+    "实验目的",
+    "实验环境",
+    "实验拓扑",
+    "实验步骤",
+    "实验结果",
+    "问题与分析",
+    "实验心得"
+  ],
+  "safety": {
+    "readOnlyDiagnosisFirst": true,
+    "highRiskActionsRequireConfirmation": true,
+    "doNotFabricateEvidence": true
+  }
+}

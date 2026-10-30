@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify
+        run: |
+          npm test
+          npm run selfcheck
+          npm run pack:check
+          npm run publish:check
+      - name: Extract release notes from CHANGELOG
+        shell: pwsh
+        run: |
+          $raw = Get-Content CHANGELOG.md -Raw
+          $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $pattern = '(?ms)^## \[?' + [regex]::Escape($ver) + '\]?.*?(?=^## |\z)'
+          $m = [regex]::Match($raw, $pattern)
+          if (-not $m.Success) {
+            Write-Error "CHANGELOG.md 里没有 $ver 小节，拒绝发布（先补变更记录）"
+            exit 1
+          }
+          $m.Value.Trim() | Set-Content RELEASE_NOTES.md -Encoding utf8
+          Get-Content RELEASE_NOTES.md -TotalCount 8
+      - name: Build installable package
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          npm pack --pack-destination dist
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" dist/*.tgz --notes-file RELEASE_NOTES.md --title "实验助手 ${{ github.ref_name }}"

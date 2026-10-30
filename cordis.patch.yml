@@ -1,0 +1,9 @@
+# DSH bundle 挂载声明。
+# 安装后，插件由 profile 的 bundle 层加载；无需手工修改 profile 配置。
+- insert:
+    - id: lab-assistant
+      name: dsh-lab-assistant
+      config:
+        enabled: true
+        displayName: 主人
+        petSize: 160

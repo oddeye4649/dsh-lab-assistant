@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-28",
+  "policy": {
+    "doNotChangeWorkingSetup": true,
+    "recommendationDoesNotEqualInstallPermission": true,
+    "highRiskActionsRequireConfirmation": true,
+    "preferOfficialSources": true,
+    "note": "推荐引擎只给出候选方案、顺序、风险与验证步骤，不自动安装或卸载。"
+  },
+  "knownUnknowns": [
+    "高校课程要求的具体版本可能不同，课程指导书优先于社区经验。",
+    "不同 Windows 版本、Hyper-V/VBS 状态和网卡驱动会改变结果。",
+    "网络上的‘一键包’无法证明来源与完整性，不能直接作为可信适配方案。"
+  ],
+  "failurePlaybook": {
+    "ensp": {
+      "softwareId": "ensp",
+      "updatedAt": "2026-10-28",
+      "machineEvidence": [
+        {
+          "id": "vbox-7.2.22-ensp-1.3.00.100",
+          "component": "virtualization",
+          "name": "Oracle VirtualBox",
+          "version": "7.2.22",
+          "softwareVersion": "V1.3.00.100",
+          "os": "Windows 11 x64 10.0.26200",
+          "date": "2026-10-28",
+          "evidence": "proven-this-machine",
+          "note": "用户实际经历：最初装的另一个 VirtualBox 版本导致 eNSP 无法运行，换成 7.2.22 后设备可正常启动。只代表这一台机器，不代表所有机器。"
+        }
+      ],
+      "signatures": [
+        {
+          "id": "ensp-device-start-fail",
+          "label": "设备启动失败（错误代码 40 / AR_Base 无法启动）",
+          "patterns": [
+            "设备.{0,8}(启动|开启).{0,8}失败",
+            "启动设备失败",
+            "错误代码\\s*40",
+            "error\\s*code\\s*40",
+            "AR_Base",
+            "Failed to open a session",
+            "0x80004005",
+            "E_FAIL",
+            "虚拟机.{0,8}(无法|不能).{0,8}(启动|打开)"
+          ],
+          "likelyCauses": [
+            "VirtualBox 版本与 eNSP 的调用方式不匹配（最常见）",
+            "Hyper-V / VBS / 内存完整性占用了虚拟化层",
+            "虚拟网卡（Host-Only）未创建或被禁用",
+            "WinPcap / Npcap 驱动冲突或缺失",
+            "安装顺序错误（先装 eNSP 后补 VirtualBox）"
+          ],
+          "firstChecks": [
+            "记录当前 VirtualBox 精确版本（帮助 → 关于）",
+            "记录失败设备名与完整错误码，并截图保存到实验档案",
+            "确认 CPU 虚拟化已开启，且 Hyper-V / VBS 状态已知",
+            "确认网络连接里存在 VirtualBox Host-Only Ethernet Adapter",
+            "确认 eNSP 实际调用的 VirtualBox 安装路径"
+          ],
+          "candidates": [
+            {
+              "component": "virtualization",
+              "name": "Oracle VirtualBox",
+              "version": "7.2.22",
+              "evidence": "proven-this-machine",
+              "why": "这台机器上 eNSP V1.3.00.100 配 7.2.22 实测可正常启动设备",
+              "verify": "启动 1 台 AR + 1 台交换机最小拓扑，重启后再试一次"
+            },
+            {
+              "component": "virtualization",
+              "name": "Oracle VirtualBox",
+              "version": "6.1.44",
+              "evidence": "community-reported",
+              "why": "6.1 末版在部分课程环境被报告可用，需在本机实测确认",
+              "verify": "最小拓扑启动 + 重启后复测"
+            },
+            {
+              "component": "virtualization",
+              "name": "Oracle VirtualBox",
+              "version": "5.2.44",
+              "evidence": "community-reported",
+              "why": "长期流传的 eNSP 经典组合，但对新系统与驱动兼容性差",
+              "verify": "最小拓扑启动；若网卡异常先查驱动再换下一个候选"
+            }
+          ]
+        },
+        {
+          "id": "ensp-capture-or-network",
+          "label": "设备起得来但抓包 / 网卡异常",
+          "patterns": [
+            "抓包.{0,10}(失败|没有|空)",
+            "WinPcap",
+            "Npcap",
+            "没有.{0,6}(网卡|接口)",
+            "no.{0,4}interface",
+            "Host-Only"
+          ],
+          "likelyCauses": [
+            "WinPcap 与 Npcap 同时存在导致驱动冲突",
+            "抓包驱动未安装或版本不匹配",
+            "VirtualBox Host-Only 网卡未创建",
+            "以非管理员权限启动 eNSP"
+          ],
+          "firstChecks": [
+            "列出当前抓包驱动：WinPcap 与 Npcap 只能保留一个",
+            "确认设备管理器中虚拟网卡无黄色感叹号",
+            "确认以管理员权限运行 eNSP",
+            "确认 Wireshark 能枚举到 VirtualBox 网卡"
+          ],
+          "candidates": [
+            {
+              "component": "capture-driver",
+              "name": "WinPcap",
+              "version": "4.1.3",
+              "evidence": "proven-this-machine",
+              "why": "这台机器上 WinPcap 4.1.3 与 eNSP 1.3 组合可用",
+              "verify": "抓包能看到 AR 设备接口流量"
+            },
+            {
+              "component": "virtualization",
+              "name": "Oracle VirtualBox",
+              "version": "7.2.22",
+              "evidence": "proven-this-machine",
+              "why": "网卡由 VirtualBox 创建，版本不符时 Host-Only 会缺失",
+              "verify": "网络连接中出现 Host-Only 适配器"
+            }
+          ]
+        },
+        {
+          "id": "ensp-generic-start",
+          "label": "eNSP 打不开 / 闪退 / 无响应",
+          "patterns": [
+            "eNSP.{0,10}(打不开|闪退|无响应|崩溃)",
+            "启动.{0,6}(闪退|报错|无响应)",
+            "crash",
+            "not responding"
+          ],
+          "likelyCauses": [
+            "上一次进程未完全退出",
+            "缺少 VC++ 运行库或兼容性设置问题",
+            "安装目录含中文或权限不足",
+            "VirtualBox 组件注册损坏"
+          ],
+          "firstChecks": [
+            "任务管理器结束残留 eNSP / VirtualBox 进程",
+            "确认安装路径为纯英文且当前账号有写权限",
+            "查看 Windows 事件查看器中的应用程序错误",
+            "记录报错弹窗原文"
+          ],
+          "candidates": [
+            {
+              "component": "main",
+              "name": "Huawei eNSP",
+              "version": "V100R003C00SPC100（1.3.00.100）",
+              "evidence": "proven-this-machine",
+              "why": "这台机器当前使用的版本，可正常启动设备",
+              "verify": "主程序打开 + 最小拓扑启动"
+            }
+          ]
+        }
+      ],
+      "installOrder": [
+        "备份 eNSP 拓扑、工程文件与当前版本清单",
+        "记录当前 VirtualBox 精确版本与虚拟网卡状态",
+        "下载 VirtualBox {{version}} 官方安装包并记录文件校验值",
+        "卸载当前 VirtualBox（保留虚拟机配置与许可证）",
+        "重启系统",
+        "安装 VirtualBox {{version}}",
+        "确认 Host-Only 虚拟网卡已重建",
+        "启动 eNSP，创建 1 台 AR + 1 台交换机 + 1 台 PC 的最小拓扑",
+        "记录结果到本机经验库（可用 / 失败）"
+      ],
+      "rollback": [
+        "卸载前导出拓扑并保留旧版本安装包",
+        "候选版本失败时回退到上一个已验证版本",
+        "不要删除 eNSP 工程目录和已有拓扑",
+        "回退后重新确认虚拟网卡与抓包驱动状态"
+      ],
+      "risk": "medium-high",
+      "riskNote": "卸载 VirtualBox 会影响同一台机器上的其他虚拟机，必须先确认没有正在用的虚拟机。"
+    }
+  },
+  "profiles": [
+    {
+      "id": "ensp-win-x64-classic-vbox52",
+      "name": "eNSP 1.3 经典兼容组合（社区经验）",
+      "softwareIds": ["ensp"],
+      "status": "community-reported",
+      "statusLabel": "社区经验，未在本插件中完成自动化验证",
+      "appliesTo": {
+        "platforms": ["win32"],
+        "arch": ["x64"],
+        "minMemoryGB": 8,
+        "minDiskGB": 20
+      },
+      "action": "propose-profile",
+      "whenToUse": "新装 eNSP、现有 eNSP 无法启动、并且用户确认可以按方案调整依赖版本。",
+      "doNotUseWhen": [
+        "当前 eNSP 已经可以正常启动并完成课程实验",
+        "课程明确要求另一组版本",
+        "用户不愿承担卸载/重装 VirtualBox 的风险"
+      ],
+      "components": [
+        {
+          "role": "virtualization",
+          "name": "Oracle VirtualBox",
+          "version": "5.2.44",
+          "required": true,
+          "sourceHint": "Oracle 官方历史版本页；不要使用第三方捆绑包"
+        },
+        {
+          "role": "capture-driver",
+          "name": "WinPcap",
+          "version": "4.1.3",
+          "required": true,
+          "sourceHint": "官方或课程提供的原始安装包，并记录文件校验值"
+        },
+        {
+          "role": "capture-tool",
+          "name": "Wireshark",
+          "version": "3.x 课程指定版本优先",
+          "required": false,
+          "sourceHint": "安装时避免与已有 Npcap/WinPcap 产生驱动冲突"
+        },
+        {
+          "role": "main",
+          "name": "Huawei eNSP",
+          "version": "V100R003C00SPC100（1.3.00.100）",
+          "required": true,
+          "sourceHint": "华为官方或课程授权渠道"
+        }
+      ],
+      "installOrder": [
+        "备份拓扑、许可证和现有实验文件",
+        "VirtualBox 5.2.44",
+        "WinPcap 4.1.3",
+        "Wireshark 课程指定版本",
+        "eNSP V100R003C00SPC100",
+        "重启系统",
+        "创建最小拓扑：1 台 AR 路由器 + 1 台交换机 + 1 台 PC"
+      ],
+      "checksBeforeChange": [
+        "记录现有 VirtualBox、WinPcap/Npcap、Wireshark、eNSP 版本",
+        "检查 CPU 虚拟化是否开启",
+        "检查 Hyper-V、VBS、内存完整性和虚拟机平台状态",
+        "确认课程允许使用的组件版本",
+        "确认可以回退到当前可用环境"
+      ],
+      "conflicts": [
+        {
+          "type": "installed-major-mismatch",
+          "softwareId": "virtualbox",
+          "notEqualMajor": 5,
+          "severity": "warning",
+          "message": "当前 VirtualBox 不是 5.x。该社区方案可能需要卸载升级后的 VirtualBox，属于高风险变更；若现有环境可正常运行，不应改动。"
+        },
+        {
+          "type": "hypervisor-present",
+          "severity": "warning",
+          "message": "检测到 Hyper-V 或虚拟化安全功能正在运行，可能与 VirtualBox 虚拟化层冲突。不要自动关闭系统安全功能，应先确认课程与系统要求。"
+        },
+        {
+          "type": "virtualization-disabled",
+          "severity": "blocker",
+          "message": "CPU 固件虚拟化未开启，eNSP 设备无法可靠启动。需要用户在确认机型后自行进入 BIOS/UEFI 开启。"
+        },
+        {
+          "type": "capture-driver-conflict",
+          "severity": "warning",
+          "message": "同时存在 Npcap 与 WinPcap 时可能出现抓包驱动冲突。先记录现有组合，不要直接叠加安装。"
+        }
+      ],
+      "verification": [
+        "eNSP 主程序能正常打开",
+        "1 台 AR 设备能启动且接口状态稳定",
+        "交换机与 PC 能完成基本连通性测试",
+        "抓包功能可用或按课程要求明确禁用",
+        "重启后再次通过最小拓扑测试"
+      ],
+      "rollback": [
+        "保留现有版本清单和安装包",
+        "卸载前导出拓扑与实验数据",
+        "记录卸载顺序和系统还原点",
+        "恢复原 VirtualBox 前先确认网卡驱动状态"
+      ],
+      "sources": [
+        "https://www.borimooc.com/noticeList/3_1403.htm",
+        "https://www.cnblogs.com/lhxsoft/p/23437193",
+        "https://blog.csdn.net/weixin_26833939/article/details/165368634"
+      ]
+    },
+    {
+      "id": "ensp-current-working-keep",
+      "name": "保留当前可用 eNSP 组合",
+      "softwareIds": ["ensp"],
+      "status": "policy",
+      "statusLabel": "保护现有可用环境，不主动变更",
+      "appliesTo": {
+        "platforms": ["win32"],
+        "arch": ["x64"]
+      },
+      "action": "keep-current",
+      "whenToUse": "用户明确表示当前 eNSP 能完成实验，或已有环境已经通过最小拓扑启动测试。",
+      "doNotUseWhen": ["当前设备无法启动且错误尚未定位"],
+      "components": [],
+      "installOrder": [],
+      "checksBeforeChange": [
+        "记录当前实际可运行的 eNSP、VirtualBox、WinPcap/Npcap、Wireshark 版本",
+        "保存最小拓扑与启动结果作为本机已验证证据"
+      ],
+      "conflicts": [],
+      "verification": [
+        "重启后再次启动现有最小拓扑",
+        "课程实验可正常保存和恢复"
+      ],
+      "rollback": ["若未来必须升级，先创建完整环境快照与版本清单"],
+      "sources": []
+    },
+    {
+      "id": "ensp-vbox7-diagnose-only",
+      "name": "VirtualBox 6/7 环境：先诊断，不自动降级",
+      "softwareIds": ["ensp"],
+      "status": "policy",
+      "statusLabel": "避免在未知错误下直接卸载较新 VirtualBox",
+      "appliesTo": {
+        "platforms": ["win32"],
+        "arch": ["x64"]
+      },
+      "action": "diagnose-only",
+      "whenToUse": "检测到 VirtualBox 6.x/7.x，或当前组合与社区经典方案不同，但尚未确认失败原因。",
+      "doNotUseWhen": ["已确认课程必须使用 VirtualBox 5.2.x 且用户接受重装风险"],
+      "components": [],
+      "installOrder": [],
+      "checksBeforeChange": [
+        "采集 eNSP 启动失败的具体设备、错误码和时间",
+        "检查 VirtualBox 虚拟网卡与 Hyper-V 状态",
+        "确认 eNSP 实际调用的 VirtualBox 路径，而不是只看注册表",
+        "先尝试最小拓扑，不直接重装全部软件"
+      ],
+      "conflicts": [
+        {
+          "type": "installed-major-mismatch",
+          "softwareId": "virtualbox",
+          "atLeastMajor": 6,
+          "severity": "notice",
+          "message": "检测到较新的 VirtualBox。不同 eNSP 版本和系统环境结果不同，不能在未复现错误前断定不兼容。"
+        }
+      ],
+      "verification": [
+        "最小拓扑启动结果",
+        "eNSP 日志与设备错误码",
+        "VirtualBox 虚拟网卡状态"
+      ],
+      "rollback": ["在确认错误和备份完成前，不卸载现有 VirtualBox"],
+      "sources": [
+        "https://blog.csdn.net/weixin_31102231/article/details/162773390"
+      ]
+    },
+    {
+      "id": "python-3.12-win-x64-portable",
+      "name": "Python 3.12.10 便携解释器",
+      "softwareIds": ["python"],
+      "status": "tested-local",
+      "statusLabel": "已在 Windows 11 x64 完成标准库与 SQLite 最小实验",
+      "appliesTo": {"platforms": ["win32"], "arch": ["x64"], "minMemoryGB": 2, "minDiskGB": 1},
+      "action": "propose-profile",
+      "whenToUse": "课程要求 Python 3.12，且希望不修改系统 PATH、可随时整体删除。",
+      "doNotUseWhen": ["课程要求 Python 3.13/3.14 或指定 Anaconda", "需要 CUDA/GPU 框架或系统级服务", "课程依赖必须写入系统注册表的组件"],
+      "components": [
+        {"role": "runtime", "name": "Python", "version": "3.12.10 x64 便携包", "required": true, "sourceHint": "python.org 或 NuGet 官方包"},
+        {"role": "optional-editor", "name": "Visual Studio Code", "version": "课程未指定时可选", "required": false, "sourceHint": "官方稳定版，建议便携解压"}
+      ],
+      "installOrder": ["解压到纯英文目录", "验证 python.exe --version", "按课程需要创建独立虚拟环境", "运行最小脚本并保存输出"],
+      "checksBeforeChange": ["课程要求的 Python 版本", "现有 Python 和 PATH 是否冲突", "课程第三方库是否支持 3.12", "不要覆盖系统 Python"],
+      "conflicts": [],
+      "verification": ["python --version 返回 3.12.10", "标准库 statistics/platform 可导入", "sqlite3 建表与聚合查询成功", "课程最小脚本退出码为 0"],
+      "rollback": ["删除独立 Python 目录即可；本方案不修改 PATH 和注册表", "如创建过 venv，一并删除对应项目环境"],
+      "testedOn": {"os": "Windows 11 x64 10.0.26200", "date": "2026-10-28", "notes": "使用 NuGet 官方 3.12.10 包，完成 stdlib + SQLite 实验。"},
+      "sources": ["https://www.python.org/", "https://www.nuget.org/packages/python/3.12.10"]
+    },
+    {
+      "id": "weka-3.8.7-java17-win",
+      "name": "Weka 3.8.7 + 内置 JDK 17",
+      "softwareIds": ["weka"],
+      "status": "tested-local",
+      "statusLabel": "已在 Windows 11 x64 完成 J48 交叉验证",
+      "appliesTo": {"platforms": ["win32"], "arch": ["x64"], "minMemoryGB": 4, "minDiskGB": 1},
+      "action": "propose-profile",
+      "whenToUse": "数据挖掘课程使用 Weka 3.8.x，并允许使用自带 Java 运行环境。",
+      "doNotUseWhen": ["课程要求 Weka 3.9/4.x", "课程要求 Python/R 实现", "没有可用的 Java 17 运行环境"],
+      "components": [
+        {"role": "main", "name": "Weka", "version": "3.8.7", "required": true, "sourceHint": "Waikato 官方安装包"},
+        {"role": "runtime", "name": "OpenJDK", "version": "17", "required": true, "sourceHint": "Weka 安装包自带或系统兼容 JDK"}
+      ],
+      "installOrder": ["确认 Java 17 可用", "核对 weka.jar 与 lib 扩展包", "用命令行运行一个课程数据集", "确认输出模型和混淆矩阵"],
+      "checksBeforeChange": ["确认课程要求 Weka 版本", "检查 Java 版本和扩展包", "不要把数据集和模型写进安装目录"],
+      "conflicts": [],
+      "verification": ["java -version 返回 17", "J48 能读取 ARFF", "交叉验证完成", "输出正确率和混淆矩阵"],
+      "rollback": ["删除独立 Weka 目录；不改系统 Java", "保留课程数据集另行备份"],
+      "testedOn": {"os": "Windows 11 x64 10.0.26200", "date": "2026-10-28", "notes": "J48 十折交叉验证，10 条 mini iris，正确率 90%。"},
+      "sources": ["https://www.cs.waikato.ac.nz/ml/weka/"]
+    },
+    {
+      "id": "mysql-8.0.46-isolated-local",
+      "name": "MySQL 8.0.46 隔离实例",
+      "softwareIds": ["mysql"],
+      "status": "tested-local",
+      "statusLabel": "已在 Windows 11 x64 完成隔离建库与查询，未改动系统 3306 服务",
+      "appliesTo": {"platforms": ["win32"], "arch": ["x64"], "minMemoryGB": 4, "minDiskGB": 2},
+      "action": "propose-profile",
+      "whenToUse": "数据库课程需要 MySQL 8.0.x，但没有现成服务，或需要用独立数据目录做可删除实验。",
+      "doNotUseWhen": ["机器已有课程指定 MySQL 实例并正在使用", "需要生产数据或共享数据库", "课程要求 MariaDB/PostgreSQL"],
+      "components": [
+        {"role": "main", "name": "MySQL Community Server", "version": "8.0.46 ZIP", "required": true, "sourceHint": "MySQL 官方 ZIP Archive"},
+        {"role": "client", "name": "MySQL client", "version": "8.0.46", "required": true, "sourceHint": "随 ZIP 提供"}
+      ],
+      "installOrder": ["检查端口占用", "解压到 D 盘沙箱", "生成独立 my.ini", "初始化独立 datadir（测试环境可空密码）", "启动非服务实例", "建库建表并查询", "立即正常 shutdown"],
+      "checksBeforeChange": ["不要占用生产 3306 端口", "确认路径为英文", "空密码仅限隔离测试", "不要把生产数据或密码放入实验目录", "确认可以删除 datadir"],
+      "conflicts": [],
+      "verification": ["mysqld --version 返回 8.0.46", "mysqladmin ping 返回 mysqld is alive", "建库、建表、聚合查询成功", "mysqladmin shutdown 正常退出"],
+      "rollback": ["先执行 mysqladmin shutdown", "只删除沙箱 datadir 和临时配置", "绝不删除系统已有 MySQL 数据目录"],
+      "testedOn": {"os": "Windows 11 x64 10.0.26200", "date": "2026-10-28", "notes": "使用 33307 端口和 D:\\lab-assistant-lab 数据目录，完成 scores 表聚合查询。"},
+      "sources": ["https://dev.mysql.com/downloads/mysql/"]
+    },
+    {
+      "id": "imagej-1.54f-java17-batch",
+      "name": "ImageJ 1.54f + Java 17 批处理",
+      "softwareIds": ["imagej"],
+      "status": "tested-local",
+      "statusLabel": "已在 Windows 11 x64 完成无界面图像生成与粒子面积测量",
+      "appliesTo": {"platforms": ["win32"], "arch": ["x64"], "minMemoryGB": 2, "minDiskGB": 1},
+      "action": "propose-profile",
+      "whenToUse": "生物、医学或材料课程需要做图像测量，并且课程允许无界面批处理宏。",
+      "doNotUseWhen": ["课程要求 Fiji 专属插件", "需要 GPU、三维可视化或特定厂商显微镜插件"],
+      "components": [
+        {"role": "main", "name": "ImageJ", "version": "1.54f", "required": true, "sourceHint": "ImageJ 官方 ij.jar"},
+        {"role": "runtime", "name": "Java", "version": "17", "required": true, "sourceHint": "可用现有兼容 JDK 17"}
+      ],
+      "installOrder": ["下载 ij.jar", "确认 Java 17", "在独立目录准备宏文件", "用 -batch 模式运行", "保存日志与测量结果"],
+      "checksBeforeChange": ["确认课程是否要求 Fiji 插件", "确认宏使用的函数在 1.54f 存在", "不要把结果覆盖到原始图像"],
+      "conflicts": [],
+      "verification": ["宏执行退出码 0", "中心像素值为 255", "粒子计数为 1", "粒子面积为 12892"],
+      "rollback": ["删除独立 jar、宏和输出目录", "不改系统 Java，不写用户插件目录"],
+      "testedOn": {"os": "Windows 11 x64 10.0.26200", "date": "2026-10-28", "notes": "ImageJ 1.54f，Java 17，-batch 模式，无 GUI。"},
+      "sources": ["https://imagej.net/ij/", "https://wsr.imagej.net/ij/download.html"]
+    }
+  ]
+}

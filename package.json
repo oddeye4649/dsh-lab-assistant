@@ -1,0 +1,63 @@
+{
+  "name": "dsh-lab-assistant",
+  "version": "0.14.3",
+  "description": "实验助手：面向高校实验课程的 DSH 桌宠式流程、环境诊断与报告辅助插件",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "lab-assistant",
+    "desktop-pet",
+    "education"
+  ],
+  "type": "module",
+  "main": "index.js",
+  "icon": "./assets/icon.png",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "assets",
+    "coursepacks",
+    "overlay",
+    "docs",
+    "cordis.patch.yml",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0",
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "selfcheck": "node test/selfcheck.mjs",
+    "ui:check": "node test/ui-check.mjs",
+    "pack:check": "node scripts/pack-check.mjs",
+    "verify": "npm test && npm run selfcheck && npm run pack:check && npm run publish:check",
+    "publish:check": "node scripts/publish-check.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oddeye4649/dsh-lab-assistant.git"
+  },
+  "homepage": "https://github.com/oddeye4649/dsh-lab-assistant#readme",
+  "bugs": {
+    "url": "https://github.com/oddeye4649/dsh-lab-assistant/issues"
+  },
+  "author": "oddeye4649",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
