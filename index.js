@@ -534,6 +534,13 @@ export default {
       })
 
 
+      // 执行类动作（点击/截图/归位）前把桌宠停到右下角：
+      // 它不会挡在操作区域中间，但仍会做待机小动作；引导时会自动解除停泊去指路。
+      async function parkPetForWork(mode) {
+        if (mode === 'guided') return null
+        try { return await overlayCall('/pet', { action: 'park' }) } catch { return null }
+      }
+
       async function reportPlanFor(args = {}) {
         const experimentId = String(args.experimentId || '').trim()
         if (!experimentId) throw new Error('缺少实验编号')
@@ -818,6 +825,8 @@ export default {
             }
           }
 
+          // 引导要桌宠过去指路：先解除停泊
+          try { await overlayCall('/pet', { action: 'unpark' }) } catch { /* 忽略 */ }
           const startedAt = Date.now()
           const guided = await overlayCall('/guide', payload)
           const guideMs = Date.now() - startedAt
@@ -973,6 +982,7 @@ export default {
               hint: '确实需要代点时传 force:true（会留下记录）。',
             }
           }
+          await parkPetForWork(mode)
           return overlayCall('/click', {
             title: String(args.windowTitle || ''),
             process: String(args.process || ''),
@@ -995,6 +1005,7 @@ export default {
           height: { type: 'number', description: '目标高度，默认 800' },
         },
         async execute(args) {
+          await parkPetForWork(store.currentMode())
           const result = await overlayCall('/place', {
             title: String(args.windowTitle || ''),
             process: String(args.process || ''),
@@ -1017,6 +1028,7 @@ export default {
           height: { type: 'number', description: '归位高度，默认 800' },
         },
         async execute(args) {
+          await parkPetForWork(store.currentMode())
           const experiment = store.getExperiment(String(args.experimentId || ''))
           if (args.place !== false) {
             // 归位失败不阻断截图，只是位置不保证一致

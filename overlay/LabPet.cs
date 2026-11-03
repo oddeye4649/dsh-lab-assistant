@@ -31,6 +31,8 @@ namespace LabPet
         internal static BubbleForm Bubble;
         internal static JavaScriptSerializer Json = new JavaScriptSerializer();
         internal static PanelForm Panel;
+        internal static bool PetParked = false;
+        internal static bool WanderBeforePark = true;
         internal static string ApiBase = "";
         internal static string ApiToken = "";
         internal static string PetPath = "";
@@ -588,7 +590,7 @@ namespace LabPet
                     activityCooldown = 420 + rng.Next(600);
                 }
             }
-            else if (free && Program.Config.wander && !panelOpen)
+            else if (free && Program.Config.wander && !panelOpen && !Program.PetParked)
             {
                 if (pauseLeft > 0)
                 {
@@ -2459,6 +2461,20 @@ namespace LabPet
                     if (wantOpen != isOpen) Program.TogglePanel(Program.Pet.Left, Program.Pet.Top, Program.Config.petSize);
                     if (wantOpen && Program.Panel != null && !Program.Panel.IsDisposed) Program.Panel.BringToFront();
                 }
+                else if (action == "park")
+                {
+                    // 执行任务/生成报告期间：停在右下角不动，但待机小动作照常
+                    if (!Program.PetParked) { Program.WanderBeforePark = Program.Config.wander; Program.PetParked = true; }
+                    var area = Screen.PrimaryScreen.WorkingArea;
+                    Program.Pet.Location = new Point(area.Right - Program.Pet.Width - 24, area.Bottom - Program.Pet.Height - 24);
+                    Program.Config.x = Program.Pet.Left; Program.Config.y = Program.Pet.Top;
+                }
+                else if (action == "unpark")
+                {
+                    // 引导/交回用户时恢复：可以自由走动
+                    Program.PetParked = false;
+                    Program.Config.wander = Program.WanderBeforePark;
+                }
                 else if (action == "say" && payload.ContainsKey("text"))
                 {
                     Program.Pet.Say(Convert.ToString(payload["text"]), payload.ContainsKey("durationMs") ? Convert.ToInt32(payload["durationMs"]) : 6000);
@@ -2944,6 +2960,9 @@ namespace LabPet
 
         private static Dictionary<string, object> HandleGuide(Dictionary<string, object> payload)
         {
+            // 引导需要桌宠移动到目标旁边：先解除停泊
+            Program.PetParked = false;
+            Program.Config.wander = Program.WanderBeforePark;
             string title = Get(payload, "title");
             string processName = Get(payload, "process");
             string controlName = Get(payload, "control");
