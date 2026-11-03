@@ -14,6 +14,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Automation;
 using System.Windows.Forms;
@@ -1819,6 +1820,89 @@ namespace LabPet
         internal static extern bool GetClientRect(IntPtr hWnd, out RECT rect);
 
         [DllImport("user32.dll")]
+        internal static extern uint GetDpiForWindow(IntPtr hWnd);
+
+        [DllImport("kernel32.dll")]
+        internal static extern IntPtr GetCurrentProcess();
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        internal static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        internal static extern bool GetTokenInformation(IntPtr tokenHandle, int tokenInformationClass,
+            ref TOKEN_ELEVATION tokenInformation, uint tokenInformationLength, out uint returnLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern bool CloseHandle(IntPtr handle);
+
+        internal struct TOKEN_ELEVATION { public uint TokenIsElevated; }
+
+        // 当前进程（DSH / 伴随进程）是否以管理员身份运行
+        internal static bool CurrentProcessElevated()
+        {
+            return TokenElevated(GetCurrentProcess(), false);
+        }
+
+        // 目标进程是否管理员；拿不到句柄时按「与自身同级」处理，避免误报
+        internal static bool ProcessElevated(int pid)
+        {
+            IntPtr proc = OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+            if (proc == IntPtr.Zero) return CurrentProcessElevated();
+            try { return TokenElevated(proc, true); }
+            finally { CloseHandle(proc); }
+        }
+
+        private static bool TokenElevated(IntPtr process, bool isTarget)
+        {
+            IntPtr token = IntPtr.Zero;
+            if (process == IntPtr.Zero) return false;
+            try
+            {
+                if (process != GetCurrentProcess() && !isTarget) return false;
+                if (!OpenProcessToken(process, 0x0008, out token)) return false; // TOKEN_QUERY
+                var elevation = new TOKEN_ELEVATION();
+                uint size;
+                if (!GetTokenInformation(token, 20, ref elevation,
+                        (uint)Marshal.SizeOf(typeof(TOKEN_ELEVATION)), out size)) return false;
+                return elevation.TokenIsElevated != 0;
+            }
+            catch { return false; }
+            finally { if (token != IntPtr.Zero) CloseHandle(token); }
+        }
+
+        // 统一坐标系：对外只暴露「屏幕物理像素」，同时把 DPI 一起回报，方便换算
+        internal static double ScaleOf(IntPtr hWnd)
+        {
+            try
+            {
+                uint dpi = GetDpiForWindow(hWnd);
+                if (dpi == 0) dpi = 96;
+                return dpi / 96.0;
+            }
+            catch { return 1.0; }
+        }
+
+        internal static Dictionary<string, object> CoordInfo(IntPtr hWnd)
+        {
+            double scale = ScaleOf(hWnd);
+            RECT rect;
+            int w = 0, h = 0;
+            try { if (GetWindowRect(hWnd, out rect)) { w = rect.Right - rect.Left; h = rect.Bottom - rect.Top; } }
+            catch { }
+            return new Dictionary<string, object>
+            {
+                { "coordSpace", "physical" },
+                { "dpi", (int)Math.Round(scale * 96) },
+                { "scale", Math.Round(scale, 2) },
+                { "logicalW", (int)Math.Round(w / scale) },
+                { "logicalH", (int)Math.Round(h / scale) },
+            };
+        }
+
+        [DllImport("user32.dll")]
         internal static extern bool ClientToScreen(IntPtr hWnd, ref POINT point);
 
         // 客户区左上角的屏幕坐标（不含标题栏与边框）
@@ -1855,6 +1939,7 @@ namespace LabPet
         // 供外部处理器复用（HandlePlace）
         internal const uint WM_SYSCOMMAND_MSG = 0x0112;
         internal static readonly IntPtr SC_RESTORE_CMD = new IntPtr(0xF120);
+        internal static readonly IntPtr SC_MAXIMIZE_CMD = new IntPtr(0xF030);
 
         // 最小化的窗口坐标是 -48000，直接据此画高亮会跑到屏幕外，
         // 所以引导/截图前先把目标窗口恢复出来并前置。
@@ -1881,36 +1966,138 @@ namespace LabPet
         [DllImport("user32.dll")]
         internal static extern int GetWindowTextLength(IntPtr hWnd);
 
+        internal delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        internal static extern bool EnumWindows(EnumProc callback, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        internal static extern int GetWindowTextW(IntPtr hWnd, System.Text.StringBuilder text, int count);
+
         internal const uint PW_RENDERFULLCONTENT = 2;
     }
 
     internal static class WindowFinder
     {
-        internal static Dictionary<string, object> FindWindow(string title, string processName)
+        // 列出所有候选窗口（可见 + 有面积），按面积从大到小，便于报错时把选项直接给出去
+        internal static List<Dictionary<string, object>> ListWindows(string title, string processName, int max = 8)
         {
-            Process[] processes = Process.GetProcesses();
-            Process best = null;
-            foreach (var p in processes)
+            var list = new List<Dictionary<string, object>>();
+            var rx = BuildPattern(title);
+            bool noFilter = string.IsNullOrEmpty(processName) && rx == null && string.IsNullOrEmpty(title);
+
+            // 用 EnumWindows 而不是 Process.MainWindowHandle：
+            // 后者对 UWP（Win11 记事本等）和子窗口常返回 0，实测会「明明在屏幕上却找不到」
+            Native.EnumWindows(delegate(IntPtr h, IntPtr l)
             {
                 try
                 {
-                    if (p.Id == 0 || string.IsNullOrEmpty(p.MainWindowTitle)) continue;
+                    if (!Native.IsWindowVisible(h)) return true;
+                    int len = Native.GetWindowTextLength(h);
+                    if (len <= 0) return true;
+                    var sb = new System.Text.StringBuilder(len + 2);
+                    Native.GetWindowTextW(h, sb, sb.Capacity);
+                    string winTitle = sb.ToString();
+                    Native.RECT rect;
+                    if (!Native.GetWindowRect(h, out rect)) return true;
+                    int w = rect.Right - rect.Left, hh = rect.Bottom - rect.Top;
+                    if (w < 60 || hh < 40) return true;
+
+                    uint pid;
+                    Native.GetWindowThreadProcessId(h, out pid);
+                    string pname = "";
+                    try { pname = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName; } catch { }
+
                     bool processMatch = !string.IsNullOrEmpty(processName)
-                        && p.ProcessName.IndexOf(processName, StringComparison.OrdinalIgnoreCase) >= 0;
-                    bool titleMatch = !string.IsNullOrEmpty(title)
-                        && p.MainWindowTitle.IndexOf(title, StringComparison.OrdinalIgnoreCase) >= 0;
-                    if ((processMatch || titleMatch) && best == null) best = p;
-                    if (processMatch && titleMatch) break;
+                        && pname.IndexOf(processName, StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool titleMatch = rx != null
+                        ? rx.IsMatch(winTitle)
+                        : (!string.IsNullOrEmpty(title) && winTitle.IndexOf(title, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                    if (!noFilter && !processMatch && !titleMatch) return true;
+                    list.Add(new Dictionary<string, object>
+                    {
+                        { "pid", (int)pid },
+                        { "process", pname },
+                        { "title", winTitle },
+                        { "handle", h.ToString() },
+                        { "w", w }, { "h", hh },
+                        { "area", w * hh },
+                        { "matched", processMatch && titleMatch ? "both" : (processMatch ? "process" : "title") },
+                    });
                 }
                 catch { }
+                return true;
+            }, IntPtr.Zero);
+
+            list.Sort((a, b) => Convert.ToInt64(b["area"]).CompareTo(Convert.ToInt64(a["area"])));
+            if (list.Count > max) list.RemoveRange(max, list.Count - max);
+            return list;
+        }
+
+        // 标题支持 /正则/ 写法；「进程名 + 标题」都命中且面积最大的那个优先
+        private static Regex BuildPattern(string title)
+        {
+            if (string.IsNullOrEmpty(title) || title.Length < 3) return null;
+            if (!(title.StartsWith("/") && title.EndsWith("/"))) return null;
+            try { return new Regex(title.Substring(1, title.Length - 2), RegexOptions.IgnoreCase); }
+            catch { return null; }
+        }
+
+        internal static Dictionary<string, object> FindWindow(string title, string processName)
+        {
+            int pid = 0;
+            string t = title, pn = processName;
+            // 支持 "pid:1234" 精确指定
+            if (!string.IsNullOrEmpty(title) && title.StartsWith("pid:", StringComparison.OrdinalIgnoreCase))
+            {
+                int.TryParse(title.Substring(4).Trim(), out pid);
+                t = "";
             }
-            if (best == null || best.MainWindowHandle == IntPtr.Zero) return null;
+            if (pid > 0)
+            {
+                var byPid = new List<Dictionary<string, object>>();
+                foreach (var p in Process.GetProcesses())
+                {
+                    try
+                    {
+                        if (p.Id != pid) continue;
+                        IntPtr h = p.MainWindowHandle;
+                        if (h == IntPtr.Zero || !Native.IsWindowVisible(h)) continue;
+                        byPid.Add(new Dictionary<string, object>
+                        {
+                            { "pid", p.Id }, { "process", p.ProcessName }, { "title", p.MainWindowTitle ?? "" },
+                            { "handle", h.ToString() },
+                        });
+                    }
+                    catch { }
+                }
+                return byPid.Count > 0 ? byPid[0] : null;
+            }
+            var candidates = ListWindows(t, pn, 1);
+            if (candidates.Count == 0) return null;
+            var best = candidates[0];
             return new Dictionary<string, object>
             {
-                { "pid", best.Id },
-                { "process", best.ProcessName },
-                { "title", best.MainWindowTitle },
-                { "handle", best.MainWindowHandle.ToString() },
+                { "pid", best["pid"] },
+                { "process", best["process"] },
+                { "title", best["title"] },
+                { "handle", best["handle"] },
+            };
+        }
+
+        // 找不到窗口时统一给「可用窗口列表」，让 agent / 用户自己挑，而不是干巴巴一句"没找到"
+        internal static Dictionary<string, object> NoWindowError(string title, string processName)
+        {
+            var all = new List<Dictionary<string, object>>();
+            foreach (var c in ListWindows("", "", 6)) { c.Remove("matched"); all.Add(c); }
+            return new Dictionary<string, object>
+            {
+                { "ok", false },
+                { "error", "没有找到匹配的窗口" },
+                { "hint", "下面是当前可见的窗口，可改用 process / 精确标题 / pid:<数字> 重试" },
+                { "queried", new Dictionary<string, object> { { "title", title }, { "process", processName } } },
+                { "candidates", all },
             };
         }
 
@@ -2232,13 +2419,25 @@ namespace LabPet
             var found = WindowFinder.FindWindow(title, processName);
             if (found == null)
             {
+                return WindowFinder.NoWindowError(title, processName);
+            }
+            IntPtr handle = new IntPtr(Convert.ToInt64(found["handle"]));
+            // UIPI：Windows 不允许低完整性进程向高完整性窗口发消息/模拟输入。
+            // eNSP 这类 requireAdministrator 程序，非管理员 DSH 点了等于没点，必须提前拦住。
+            bool selfElevated = Native.CurrentProcessElevated();
+            bool targetElevated = Native.ProcessElevated(Convert.ToInt32(found["pid"]));
+            if (targetElevated && !selfElevated)
+            {
                 return new Dictionary<string, object>
                 {
                     { "ok", false },
-                    { "error", "没有找到匹配的窗口，请确认软件已打开" },
+                    { "error", "目标程序以管理员身份运行，而 DSH 不是管理员：点击会被系统(UIPI)拦掉。请以管理员身份重启 DSH。" },
+                    { "window", Convert.ToString(found["title"]) },
+                    { "elevated", false },
+                    { "targetElevated", true },
+                    { "coordSpace", "physical" },
                 };
             }
-            IntPtr handle = new IntPtr(Convert.ToInt64(found["handle"]));
             Native.EnsureRestored(handle);
             var rect = WindowFinder.WindowRect(handle);
             if (rect == null)
@@ -2295,7 +2494,7 @@ namespace LabPet
             var point = new Dictionary<string, object> { { "x", px }, { "y", py } };
             if (!confirm)
             {
-                return new Dictionary<string, object>
+                var previewResult = new Dictionary<string, object>
                 {
                     { "ok", true },
                     { "clicked", false },
@@ -2303,8 +2502,12 @@ namespace LabPet
                     { "window", Convert.ToString(found["title"]) },
                     { "rect", rect },
                     { "point", point },
+                    { "elevated", selfElevated },
+                    { "targetElevated", targetElevated },
                     { "note", "预演：光标已移到目标并高亮，没有点击。确认这个位置安全后，再传 confirm:true 执行。" },
                 };
+                foreach (var kv in Native.CoordInfo(handle)) previewResult[kv.Key] = kv.Value;
+                return previewResult;
             }
 
             Native.SetForegroundWindow(handle);
@@ -2327,7 +2530,7 @@ namespace LabPet
             }
             catch { /* 日志失败不影响点击 */ }
 
-            return new Dictionary<string, object>
+            var clickResult = new Dictionary<string, object>
             {
                 { "ok", true },
                 { "clicked", true },
@@ -2335,8 +2538,11 @@ namespace LabPet
                 { "window", Convert.ToString(found["title"]) },
                 { "rect", rect },
                 { "point", point },
+                { "elevated", selfElevated },
                 { "note", "已点击。请用 desktop_screenshot 截图核对结果，再记录实测值。" },
             };
+            foreach (var kv in Native.CoordInfo(handle)) clickResult[kv.Key] = kv.Value;
+            return clickResult;
         }
 
         // 把目标窗口摆到固定矩形：截图基准一致、可对比、图片更小（省 token）
@@ -2349,11 +2555,7 @@ namespace LabPet
             var found = WindowFinder.FindWindow(title, processName);
             if (found == null)
             {
-                return new Dictionary<string, object>
-                {
-                    { "ok", false },
-                    { "error", "没有找到匹配的窗口，请确认软件已打开" },
-                };
+                return WindowFinder.NoWindowError(title, processName);
             }
             IntPtr handle = new IntPtr(Convert.ToInt64(found["handle"]));
             // 最小化或被最大化时先还原，否则 MoveWindow 不生效
@@ -2387,10 +2589,30 @@ namespace LabPet
                 { "rect", rect },
                 { "applied", applied },
             };
-            result["note"] = applied
-                ? "窗口已归位到固定矩形；后续截图与指引都以此为准"
-                : "该软件拒绝外部调整窗口大小/位置（eNSP 实测如此），当前矩形保持不变。"
-                  + "请手动把它拖成你想要的固定大小并别再改，之后的截图基准同样一致。";
+            if (applied)
+            {
+                result["note"] = "窗口已归位到固定矩形；后续截图与指引都以此为准";
+                result["fallback"] = "";
+                return result;
+            }
+            // 拒绝改尺寸的程序（eNSP 实测）：改为最大化——尺寸稳定，截图基准同样一致
+            try
+            {
+                Native.PostMessage(handle, Native.WM_SYSCOMMAND_MSG, Native.SC_MAXIMIZE_CMD, IntPtr.Zero);
+                System.Threading.Thread.Sleep(500);
+                var maximized = WindowFinder.WindowRect(handle);
+                bool isMax = Native.IsZoomed(handle);
+                result["fallback"] = isMax ? "maximize" : "none";
+                result["rect"] = maximized ?? rect;
+                result["note"] = isMax
+                    ? "该软件拒绝外部改动窗口几何，已改用「最大化」：尺寸固定，截图基准一致。"
+                    : "该软件既拒绝改尺寸也拒绝最大化。请手动把它拖成固定大小并别再改，之后截图基准仍然一致。";
+            }
+            catch
+            {
+                result["fallback"] = "none";
+                result["note"] = "该软件拒绝外部调整窗口大小/位置；请手动固定窗口大小后再继续。";
+            }
             return result;
         }
 
@@ -2791,7 +3013,7 @@ namespace LabPet
             var found = WindowFinder.FindWindow(title, processName);
             if (found == null)
             {
-                return new Dictionary<string, object> { { "ok", false }, { "error", "没有找到匹配的窗口" } };
+                return WindowFinder.NoWindowError(title, processName);
             }
             IntPtr handle = new IntPtr(Convert.ToInt64(found["handle"]));
             // 最小化的窗口量出来的 rect / 截出来的图都不对：先恢复再取尺寸
@@ -2804,6 +3026,35 @@ namespace LabPet
             }
             int width = rect.Right - rect.Left;
             int height = rect.Bottom - rect.Top;
+            // 桌宠是常驻置顶窗口：PrintWindow 拿不到它，但失败时的屏幕拷贝会把它拍进去（实测）。
+            // 截图前先收起桌宠，截完立刻恢复。
+            // 可能同时存在多个桌宠实例（SpawnAnotherPet），逐个按窗口隐藏，截完统一恢复
+            var petWindows = new List<KeyValuePair<IntPtr, bool>>();
+            try
+            {
+                // 桌宠窗口标题是 "lab-pet"，而且 MainWindowHandle 常为 0，只能靠 EnumWindows + 进程名判断
+                Native.EnumWindows(delegate(IntPtr wh, IntPtr lp)
+                {
+                    try
+                    {
+                        if (!Native.IsWindowVisible(wh)) return true;
+                        uint pid;
+                        Native.GetWindowThreadProcessId(wh, out pid);
+                        string pname = "";
+                        try { pname = Process.GetProcessById((int)pid).ProcessName; } catch { }
+                        if (!pname.StartsWith("LabPet", StringComparison.OrdinalIgnoreCase)) return true;
+                        if (Native.ShowWindow(wh, 0)) petWindows.Add(new KeyValuePair<IntPtr, bool>(wh, true));
+                    }
+                    catch { }
+                    return true;
+                }, IntPtr.Zero);
+                if (petWindows.Count > 0) System.Threading.Thread.Sleep(180);
+            }
+            catch { }
+            bool petHidden = petWindows.Count > 0;
+            bool petRestored = false;
+            try
+            {
             using (var bitmap = new Bitmap(width, height))
             using (var graphics = Graphics.FromImage(bitmap))
             {
@@ -2819,13 +3070,31 @@ namespace LabPet
                 Directory.CreateDirectory(Path.GetDirectoryName(output));
                 bitmap.Save(output, ImageFormat.Png);
             }
-            return new Dictionary<string, object>
+            }
+            finally
+            {
+                // 截完立刻把桌宠放回来（用户明确要求：只藏一瞬，不是常驻隐藏）
+                foreach (var kv in petWindows)
+                {
+                    try
+                    {
+                        Native.ShowWindow(kv.Key, 5); // SW_SHOW
+                        if (Native.IsWindowVisible(kv.Key)) petRestored = true;
+                    }
+                    catch { }
+                }
+            }
+            var shotResult = new Dictionary<string, object>
             {
                 { "ok", true },
                 { "out", output },
                 { "title", found["title"] },
                 { "w", width }, { "h", height },
+                { "petHidden", petHidden },
+                { "petRestored", petRestored },
             };
+            foreach (var kv in Native.CoordInfo(handle)) shotResult[kv.Key] = kv.Value;
+            return shotResult;
         }
 
         private static Dictionary<string, object> HandleInspect(Dictionary<string, object> payload)
@@ -2836,7 +3105,7 @@ namespace LabPet
             var found = WindowFinder.FindWindow(title, processName);
             if (found == null)
             {
-                return new Dictionary<string, object> { { "ok", false }, { "error", "没有找到匹配的窗口" } };
+                return WindowFinder.NoWindowError(title, processName);
             }
             IntPtr handle = new IntPtr(Convert.ToInt64(found["handle"]));
             var controls = WindowFinder.InspectControls(handle, max);

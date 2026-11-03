@@ -154,8 +154,11 @@ test('生成计划会区分自动填充与待补，不编造结果', () => {
   assert.equal(summary.coverage, 'draft')
   const purpose = plan.sections.find((item) => item.kind === 'purpose')
   assert.equal(purpose.coverage, 'draft')
-  assert.ok(plan.coverage.draft >= 3)
-  assert.ok(plan.drafts.length >= 3)
+  // 0.15.0 起：结果分析由 actual 自动汇总、问题与解决从失败步骤抽取，草稿数会相应减少
+  const analysis = plan.sections.find((item) => item.kind === 'analysis')
+  assert.ok(['auto', 'draft'].includes(analysis.coverage))
+  assert.ok(plan.coverage.draft >= 1)
+  assert.ok(plan.drafts.length >= 1)
 })
 
 test('生成 md 与 docx，占位符明确且不含伪造数据', () => {

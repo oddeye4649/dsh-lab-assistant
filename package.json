@@ -1,6 +1,6 @@
 {
   "name": "dsh-lab-assistant",
-  "version": "0.14.3",
+  "version": "0.15.0",
   "description": "实验助手：面向高校实验课程的 DSH 桌宠式流程、环境诊断与报告辅助插件",
   "keywords": [
     "dsh",
@@ -23,7 +23,8 @@
     "assets",
     "coursepacks",
     "overlay",
-    "docs",
+    "docs/screenshots",
+    "!docs/promo/*.mp4",
     "cordis.patch.yml",
     "SECURITY.md",
     "CHANGELOG.md",

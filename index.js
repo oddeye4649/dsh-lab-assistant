@@ -246,7 +246,7 @@ export default {
         description: '查看实验助手的本地状态：实验档案数量、默认称呼、桌宠资源、数据目录。用户提到“实验助手状态”“桌宠”“实验档案”时可调用。',
         parameters: {},
         async execute() {
-          return {
+          const base = {
             ok: true,
             plugin: 'dsh-lab-assistant',
             version: packageVersion(),
@@ -256,6 +256,46 @@ export default {
             readOnlyProbeAvailable: true,
             hostDeps: hostDeps.notes,
           }
+          // 多任务实验最需要的是「哪一步到哪了」：按 已执行 / 已配置 / 已截图 / 已记录 四态给出来
+          try {
+            const currentId = store.currentExperimentId()
+            const experiment = currentId ? store.getExperiment(currentId) : null
+            if (!experiment) return base
+            let screenshotCount = 0
+            try {
+              const dir = join(experiment.workDir, 'screenshots')
+              screenshotCount = existsSync(dir) ? readdirSync(dir).filter((f) => /\.(png|jpg|jpeg)$/i.test(f)).length : 0
+            } catch { screenshotCount = 0 }
+            const steps = (experiment.steps || []).map((step, index) => {
+              const recorded = Boolean(String(step.actual || '').trim()) || step.passed === true || step.passed === false
+              const executed = recorded || (step.status && step.status !== 'pending')
+              const configured = Boolean(String(step.where || '').trim()) || Boolean(String(step.notes || '').trim())
+              return {
+                index: index + 1,
+                title: step.title,
+                status: step.status || 'pending',
+                executed,
+                configured,
+                recorded,
+                passed: step.passed,
+                actual: String(step.actual || '').slice(0, 80),
+              }
+            })
+            base.currentExperiment = {
+              id: experiment.id,
+              title: experiment.title,
+              mode: store.currentMode(),
+              screenshotCount,
+              steps,
+              missing: {
+                notExecuted: steps.filter((x) => !x.executed).map((x) => x.title),
+                notRecorded: steps.filter((x) => !x.recorded).map((x) => x.title),
+                noScreenshot: screenshotCount === 0 ? '整个实验一张截图都没有' : '',
+              },
+              note: '四态含义：executed=执行过（有状态或实测）；configured=记录了位置/笔记；recorded=有实测值或通过判定；截图是实验级总数。',
+            }
+          } catch { /* 状态增强失败不影响主状态 */ }
+          return base
         },
       })
 
@@ -482,10 +522,15 @@ export default {
         if (args.templatePath) {
           profile = importTemplate({ filePath: String(args.templatePath), homeDir: store.homeDir })
         }
+        // 是否真的拿到了「老师给的模板」：档案里记过的路径、或本次显式传的都算
+        const hasTemplate = Boolean(profile) || Boolean(String(experiment.reportTemplate || '').trim())
         if (!profile) profile = builtinProfile()
         const environment = await probeEnvironment({ software: experiment.software })
         const attempts = new RepairHistory(store.homeDir).list()
-        return buildReportPlan({ experiment, profile, environment, history: { attempts }, overrides: args.sectionTexts })
+        const plan = buildReportPlan({ experiment, profile, environment, history: { attempts }, overrides: args.sectionTexts })
+        plan.templateMissing = !hasTemplate
+        plan.requirementPath = String(experiment.requirementPath || '').trim()
+        return plan
       }
 
       tool({
@@ -530,6 +575,7 @@ export default {
           studentName: { type: 'string', description: '姓名，可省略' },
           studentId: { type: 'string', description: '学号，可省略' },
           requirementPath: { type: 'string', description: '实验要求文件路径（pdf/docx/txt/md/图片），可省略；会记进档案' },
+          useBuiltin: { type: 'boolean', description: '没有模板也坚持用内置通用模板生成（默认 false：先停下让用户补模板）' },
         },
         async execute(args) {
           // 要求文件先落进档案，供 DSH 读取解析，再据此组织报告内容
@@ -537,6 +583,24 @@ export default {
             try { store.updateExperiment(args.experimentId, { requirementPath: String(args.requirementPath).trim() }) } catch { /* 路径无效不影响生成 */ }
           }
           const plan = await reportPlanFor(args)
+          // 只有要求文件、没有模板时：直接生成会套用内置通用模板，和老师的格式对不上（实测返工一次）。
+          // 这里停下来要模板，而不是静默产出。
+          if (plan.templateMissing && args.useBuiltin !== true) {
+            return {
+              ok: false,
+              needTemplate: true,
+              experimentId: plan.experiment && plan.experiment.id,
+              requirementPath: plan.requirementPath || '',
+              error: '还没有报告模板：现在生成会套用内置通用模板，章节和老师要求对不上。',
+              hint: '把老师的 .docx 模板路径传给 lab_report_template(path) 导入（只需一次），'
+                + '或直接给 report_generate 传 templatePath；确实要用通用模板时传 useBuiltin:true。',
+              howTo: [
+                'lab_report_template(path:"D:\\我校模板\\实验报告模板.docx")  ← 导入模板',
+                'lab_report_generate(experimentId:"...", templateId:"...")        ← 再生成',
+              ],
+              mustExplain: '向用户说明：没有模板会与老师格式不一致，所以先暂停生成。',
+            }
+          }
           const output = generateReport({
             plan,
             student: { name: String(args.studentName || ''), studentId: String(args.studentId || '') },
@@ -601,6 +665,40 @@ export default {
         },
       })
 
+
+      tool({
+        name: 'lab_report_update',
+        description: '报告生成后又补了截图/改了实测值时用：重新生成同一份报告（沿用原模板与已写章节），并回报新增的图片数量。用于「只同步图片」的场景，不必重新走一遍生成流程。',
+        parameters: {
+          experimentId: { type: 'string', description: '实验编号' },
+          templateId: { type: 'string', description: '已导入模板 ID，可省略' },
+          templatePath: { type: 'string', description: '模板文件路径，可省略' },
+          sectionTexts: { type: 'object', additionalProperties: true, description: '要覆盖的章节正文，可省略（省略则沿用档案里的实测值）' },
+        },
+        async execute(args) {
+          const plan = await reportPlanFor(args)
+          const countFigures = (p) => (p.sections || []).reduce(
+            (sum, item) => sum + ((item.images && item.images.length) || 0), 0)
+          const before = countFigures(plan)
+          const output = generateReport({
+            plan,
+            student: { name: String(args.studentName || ''), studentId: String(args.studentId || '') },
+          })
+          const after = countFigures(plan)
+          return {
+            ok: true,
+            updated: true,
+            experimentId: plan.experiment && plan.experiment.id,
+            figuresBefore: before,
+            figuresNow: after,
+            added: Math.max(0, after - before),
+            files: output.files,
+            coverage: output.coverage,
+            pending: plan.sections.filter((item) => item.coverage === 'partial' || item.coverage === 'pending').map((item) => item.title),
+            note: '已按当前档案重新生成；新增截图会自动并入对应章节。',
+          }
+        },
+      })
 
       tool({
         name: 'lab_desktop_status',
@@ -880,7 +978,7 @@ export default {
 
       tool({
         name: 'lab_desktop_screenshot',
-        description: '真实截取目标软件窗口（PrintWindow），保存进实验档案 screenshots 目录。截图是真实画面，不合成。默认会先把窗口归位到固定矩形，保证多张截图基准一致。',
+        description: '真实截取目标软件窗口（PrintWindow），保存进实验档案 screenshots 目录。截图是真实画面，不合成。截图期间会自动隐藏所有桌宠窗口（截完恢复），避免宠物入镜。默认会先把窗口归位到固定矩形，保证多张截图基准一致。',
         parameters: {
           experimentId: { type: 'string', description: '实验编号' },
           windowTitle: { type: 'string', description: '窗口标题关键字，可省略' },

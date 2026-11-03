@@ -16,6 +16,12 @@
 
 ![教学循环](docs/screenshots/tutorial.png)
 
+## 宣传片
+
+[![实验助手宣传片](docs/promo/poster.jpg)](docs/promo/lab-assistant-promo.mp4)
+
+约 70 秒：十种待机小动作、DSH 对话建档案 / 只读环境检查 / 记录实测值、点桌宠判对错、按老师模板生成报告，以及「再来一只桌宠」的多只同屏。配音与背景音乐均由脚本生成，画面全部由插件素材合成（`scripts/promo_tts.py` + `scripts/promo_video.py`）。
+
 ## 执行规则（硬性，优先于一切）
 
 1. **按文档要求决定粒度，不自己加戏、也不偷懒合并**：
