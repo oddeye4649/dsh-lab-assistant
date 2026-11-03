@@ -133,7 +133,8 @@ test('API 可从本机读取状态、设置与实验档案', async () => {
     const generated = await fetch(`${base}/dsh-lab/api/report/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ experimentId: created.experiment.id, studentName: '张三', studentId: '20260001' }),
+      // 0.15.x：没有模板时会被拦下，这里显式用内置模板封面
+      body: JSON.stringify({ experimentId: created.experiment.id, studentName: '张三', studentId: '20260001', useBuiltin: true }),
     }).then((x) => x.json())
     assert.equal(generated.ok, true)
     assert.ok(generated.files.docx.endsWith('.docx'))

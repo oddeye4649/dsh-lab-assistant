@@ -1,6 +1,6 @@
 {
   "name": "dsh-lab-assistant",
-  "version": "0.15.5",
+  "version": "0.15.6",
   "description": "实验助手：面向高校实验课程的 DSH 桌宠式流程、环境诊断与报告辅助插件",
   "keywords": [
     "dsh",

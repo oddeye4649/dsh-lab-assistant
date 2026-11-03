@@ -54,13 +54,23 @@ try {
   })).json())
   assert.equal(created.ok, true)
 
-  const generated = await page.evaluate(async (id) => (await fetch('/dsh-lab/api/report/generate', {
+  // 0.15.x：没模板时先拦下（工具与 HTTP API 行为一致），再用 useBuiltin 生成
+  const blocked = await page.evaluate(async (id) => (await fetch('/dsh-lab/api/report/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ experimentId: id, studentName: '验收', studentId: '0001' }),
   })).json(), created.experiment.id)
+  assert.equal(blocked.ok, false, '没有模板时应先拦下')
+  assert.equal(blocked.needTemplate, true)
+
+  const generated = await page.evaluate(async (id) => (await fetch('/dsh-lab/api/report/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ experimentId: id, studentName: '验收', studentId: '0001', useBuiltin: true }),
+  })).json(), created.experiment.id)
   assert.equal(generated.ok, true)
   assert.ok(generated.files.docx.endsWith('.docx'))
+  assert.ok(Array.isArray(generated.pendingSections), '应返回待补章节清单')
 
   await page.screenshot({ path: join(SHOTS, 'lab-assistant-guide.png'), fullPage: false })
   assert.equal(pageErrors.length, 0, `页面异常：${pageErrors.join(' | ')}`)

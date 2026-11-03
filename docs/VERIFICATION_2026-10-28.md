@@ -274,5 +274,12 @@ node test/ui-check.mjs              # 含报告生成流程
 
 - **Release 附件**：v0.15.3/v0.15.4 附件已确认可下载；0.15.0–0.15.2 的附件是推送后异步出现的，未逐个下载校验内容
 - **真实 GUI 场景**：eNSP（管理员进程）+ 150% DPI 的端到端截图/点击，只验证了接口字段与坐标，没有在 eNSP 上真点一次
-- `test/ui-check.mjs` 仍未执行（需要 puppeteer-core）
-- 桌宠停泊只测了坐标不动，没有验证「待机动画仍在播」
+### 五、2026-11-03 晚间补测（0.15.6）
+
+- **停泊时待机动画** ✅：连续 12 帧采样，自由状态 12 个位置/11 次明显变化；`park` 后 **1 个位置**
+  （2141,1091 不变）、仍有 11/11 帧像素变化；`unpark` 后恢复走动（12 个位置）
+- **`test/ui-check.mjs` 跑通** ✅：puppeteer-core 25.16 + 本机 Chrome 无头
+  运行方式：`PUPPETEER_CORE_PATH=<…/puppeteer-core/lib/puppeteer/puppeteer-core.js> CHROME_PATH=<chrome.exe> node test/ui-check.mjs`
+  断言：页面无注入 UI、`/dsh-lab/pet.js` 返回 404、`/api/status` 正常、建实验成功、
+  **缺模板时 `ok:false, needTemplate:true`**、`useBuiltin:true` 时生成成功且返回 `pendingSections`、无页面异常
+- 顺带修掉一个真问题：HTTP API 之前绕过模板检查，已与工具行为对齐（0.15.6）

@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+## [0.15.6] - 2026-11-03
+
+### 修复
+- **HTTP API 与工具行为不一致**：`/dsh-lab/api/report/generate`（面板/预览页走这条）之前不做模板检查，
+  会悄悄用内置模板；现在与 `lab_report_generate` 一致，缺模板返回 `needTemplate`，除非传 `useBuiltin:true`
+
+### 测试
+- `test/ui-check.mjs` 终于跑起来了（puppeteer-core + 本机 Chrome 无头）：页面无注入 UI、`/dsh-lab/pet.js` 404、
+  状态接口正常、建实验、缺模板被拦、`useBuiltin` 生成并返回待补清单，全部断言通过
+- 补测「停泊时待机动画仍在播」：停泊 6 秒 11/11 帧有像素变化、位置 0 位移
+
+
 ## [0.15.5] - 2026-11-03
 
 ### 变更

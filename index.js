@@ -1417,6 +1417,14 @@ page_map_capture / page_map_guide / page_map_list 页面地图`
           const body = await readJsonBody(req, 16 * 1024)
           try {
             const plan = await reportPlanFor(body)
+            // 与 lab_report_generate 工具保持一致：没模板先拦下，别让面板/网页悄悄用内置模板
+            if (plan.templateMissing && body.useBuiltin !== true) {
+              return json(res, 200, {
+                ok: false, needTemplate: true, experimentId: plan.experiment && plan.experiment.id,
+                error: '还没有报告模板：会套用内置模板，和老师格式对不上。',
+                askUser: '先问用户要模板（.docx），或确认没有后传 useBuiltin:true。',
+              })
+            }
             const output = generateReport({
               plan,
               student: { name: String(body.studentName || ''), studentId: String(body.studentId || '') },
