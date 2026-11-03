@@ -9,7 +9,7 @@ import { probeEnvironment } from './lib/probe.mjs'
 import { catalogHighlights, searchCatalog } from './lib/catalog.mjs'
 import { adviseCompatibility } from './lib/advisor.mjs'
 import { RepairHistory, planRepair, recordRepair } from './lib/remedy.mjs'
-import { buildReportPlan, builtinProfile, generateReport, importTemplate, listTemplates, loadTemplate } from './lib/report.mjs'
+import { buildReportPlan, builtinProfile, deleteTemplate, generateReport, importTemplate, listTemplates, loadTemplate } from './lib/report.mjs'
 import { startOverlay, stopOverlay, overlayStatus, overlayRequest } from './lib/overlay.mjs'
 import { loadHostDeps } from './lib/hostdeps.mjs'
 import { isTrustedLocalRequest, readJsonBody, sendJson } from './lib/http.mjs'
@@ -324,6 +324,26 @@ export default {
       })
 
       tool({
+        name: 'lab_experiment_delete',
+        description: '删除一份实验档案：整份目录移到 homeDir/_trash（可恢复），不做不可逆销毁。删除当前实验时会清空「当前实验」。',
+        parameters: {
+          experimentId: { type: 'string', description: '实验编号' },
+          confirm: { type: 'boolean', description: '必须显式传 true 才会删除，防止误调用' },
+        },
+        async execute(args) {
+          if (args.confirm !== true) {
+            return { ok: false, error: '删除需要显式传 confirm:true', hint: '请先向用户确认要删哪一份，再带 confirm:true 重试。' }
+          }
+          try {
+            const removed = store.deleteExperiment(String(args.experimentId || ''))
+            return { ok: true, deleted: removed, note: '已移入 _trash，需要时可手动恢复' }
+          } catch (error) {
+            return { ok: false, error: error.message }
+          }
+        },
+      })
+
+      tool({
         name: 'lab_experiment_clone',
         description: '以上一份实验为模板复制步骤骨架（沿用课程/软件/模板/要求与 where 位置提示），结果清空。同一门课的第二次实验用它直接开工，省去重新拆步骤。',
         parameters: {
@@ -539,10 +559,19 @@ export default {
         parameters: {
           path: { type: 'string', description: '模板文件绝对路径，可省略' },
           name: { type: 'string', description: '模板名称，可省略' },
+          deleteId: { type: 'string', description: '要删除的模板 ID（移到 _trash，可恢复），可省略' },
         },
         async execute(args) {
+          if (args.deleteId) {
+            try {
+              const removed = deleteTemplate(store.homeDir, String(args.deleteId))
+              return { ok: true, deleted: removed, note: '模板已移入 _trash，可手动恢复' }
+            } catch (error) {
+              return { ok: false, error: error.message }
+            }
+          }
           if (!args.path) {
-            return { ok: true, templates: listTemplates(store.homeDir), hint: '传 path 可导入新模板。' }
+            return { ok: true, templates: listTemplates(store.homeDir), hint: '传 path 可导入新模板；传 deleteId 可删除模板。' }
           }
           const profile = importTemplate({ filePath: String(args.path), name: String(args.name || ''), homeDir: store.homeDir })
           return { ok: true, template: profile, hint: '模板已保存到本机，可重复使用。' }
@@ -1283,6 +1312,24 @@ page_map_capture / page_map_guide / page_map_list 页面地图`
             return json(res, 201, { ok: true, experiment })
           }
           return json(res, 405, { ok: false, error: '只支持 GET 或 POST' })
+        }
+        const deleteExperimentMatch = /^\/dsh-lab\/api\/experiments\/([^/]+)$/.exec(pathname)
+        if (deleteExperimentMatch && req.method === 'DELETE') {
+          try {
+            const removed = store.deleteExperiment(decodeURIComponent(deleteExperimentMatch[1]))
+            return json(res, 200, { ok: true, ...removed, note: '已移入 _trash，需要时可手动恢复' })
+          } catch (error) {
+            return json(res, 400, { ok: false, error: error.message })
+          }
+        }
+        const deleteTemplateMatch = /^\/dsh-lab\/api\/report\/templates\/([^/]+)$/.exec(pathname)
+        if (deleteTemplateMatch && req.method === 'DELETE') {
+          try {
+            const removed = deleteTemplate(store.homeDir, decodeURIComponent(deleteTemplateMatch[1]))
+            return json(res, 200, { ok: true, ...removed, note: '已移入 _trash，需要时可手动恢复' })
+          } catch (error) {
+            return json(res, 400, { ok: false, error: error.message })
+          }
         }
         const resultMatch = /^\/dsh-lab\/api\/experiments\/([^/]+)\/results$/.exec(pathname)
         if (resultMatch && req.method === 'POST') {

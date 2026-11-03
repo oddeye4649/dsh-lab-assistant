@@ -1159,6 +1159,7 @@ namespace LabPet
         private CardPanel cardList, cardNew, cardTpl, cardPet;
         private Label tplCountLabel;
         private PillButton btnRefresh, btnOpenDir, btnCreate, btnBrowse, btnBrowseReq, btnGenerate, btnOpenReport, btnPetSave, btnQuitPet, btnBrowseData, btnBrowseDataset;
+        private PillButton btnDeleteExp, btnDeleteTpl;
         private List<Dictionary<string, object>> experiments = new List<Dictionary<string, object>>();
         private string lastDocx = "";
 
@@ -1262,8 +1263,11 @@ namespace LabPet
             btnRefresh.Click += delegate { RefreshList(); };
             btnOpenDir.Click += delegate { OpenDir(false); };
             cardList.Controls.Add(list);
+            btnDeleteExp = MakeButton("删除…", 272, 148, 84, true);
+            btnDeleteExp.Click += delegate { DeleteSelectedExperiment(); };
             cardList.Controls.Add(btnRefresh);
             cardList.Controls.Add(btnOpenDir);
+            cardList.Controls.Add(btnDeleteExp);
             Controls.Add(cardList);
 
             // ── 新建实验 ──
@@ -1308,14 +1312,18 @@ namespace LabPet
             templateBox = MakeInput(60, 64, 300);   // 隐藏：存选中的模板 ID
             templateBox.Visible = false;
             cardTpl.Controls.Add(templateBox);
-            templateCombo = new SkyCombo { Left = 60, Top = 64, Width = 300, Height = 26 };
+            templateCombo = new SkyCombo { Left = 60, Top = 64, Width = 196, Height = 26 };
             templateCombo.SelectedIndexChanged += delegate { SyncTemplateSelection(); };
             templateCombo.Items.Add(new TemplateItem { Id = "", Name = "(未导入模板，点右边导入…)" });
             cardTpl.Controls.Add(templateCombo);
-            btnBrowse = MakeButton("导入…", 368, 62, 84, true);
+            btnBrowse = MakeButton("导入…", 266, 62, 84, true);
             btnBrowse.Height = 28;
             btnBrowse.Click += delegate { ImportTemplate(); };
             cardTpl.Controls.Add(btnBrowse);
+            btnDeleteTpl = MakeButton("删除…", 356, 62, 84, true);
+            btnDeleteTpl.Height = 28;
+            btnDeleteTpl.Click += delegate { DeleteSelectedTemplate(); };
+            cardTpl.Controls.Add(btnDeleteTpl);
             tplCountLabel = MakeLabel("模板库为空：点「导入…」选一份老师给的 .docx", 16, 108, 320, 22, new Font("Microsoft YaHei UI", 8.5f), Ui.Muted);
             cardTpl.Controls.Add(tplCountLabel);
             Controls.Add(cardTpl);
@@ -1413,6 +1421,7 @@ namespace LabPet
                 list.Columns[3].Width = Math.Max(90, lw - c0 - c1 - c2);
             }
             btnOpenDir.Left = btnRefresh.Left + btnRefresh.Width + 8;
+            if (btnDeleteExp != null) btnDeleteExp.Left = btnOpenDir.Left + btnOpenDir.Width + 8;
 
             top = cardList.Top + cardList.Height + 16;
             cardNew.Left = m; cardNew.Top = top; cardNew.Width = w;
@@ -1423,7 +1432,12 @@ namespace LabPet
 
             top = cardNew.Top + cardNew.Height + 16;
             cardTpl.Left = m; cardTpl.Top = top; cardTpl.Width = w;
-            if (btnBrowse != null) btnBrowse.Left = Math.Max(120, w - 16 - btnBrowse.Width);
+            if (btnDeleteTpl != null) btnDeleteTpl.Left = Math.Max(120, w - 16 - btnDeleteTpl.Width);
+            if (btnBrowse != null)
+            {
+                int rightEdge = btnDeleteTpl != null ? btnDeleteTpl.Left - 8 : w - 16;
+                btnBrowse.Left = Math.Max(120, rightEdge - btnBrowse.Width);
+            }
             if (templateBox != null && btnBrowse != null) templateBox.Width = Math.Max(100, btnBrowse.Left - 60 - 8);
             if (templateCombo != null && templateBox != null) templateCombo.Width = templateBox.Width;
 
@@ -1696,6 +1710,55 @@ namespace LabPet
             if (reportFolder) dir = Path.Combine(dir, "reports");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             Process.Start("explorer.exe", dir);
+        }
+
+        // 删除选中的实验档案：二次确认 → 移到 _trash（可恢复）
+        private void DeleteSelectedExperiment()
+        {
+            if (list.SelectedItems.Count == 0)
+            {
+                SetStatus("先在列表里选中要删除的实验档案"); return;
+            }
+            var exp = list.SelectedItems[0].Tag as Dictionary<string, object>;
+            if (exp == null) return;
+            string id = ToStr(exp, "id");
+            string title = ToStr(exp, "title");
+            var answer = MessageBox.Show(this,
+                "删除实验档案「" + title + "」？\n\n整份目录会移到 _trash（可恢复），不会立刻销毁。",
+                "确认删除", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (answer != DialogResult.OK) return;
+            try
+            {
+                var r = Obj(Api("DELETE", "/experiments/" + Uri.EscapeDataString(id), null));
+                SetStatus(r.ContainsKey("ok") && Convert.ToBoolean(r["ok"])
+                    ? "已删除：" + title + "（移入 _trash）"
+                    : "删除失败：" + ToStr(r, "error"));
+                RefreshList();
+            }
+            catch (Exception ex) { SetStatus("删除失败：" + ex.Message); }
+        }
+
+        // 删除当前选中的模板：二次确认 → 移到 _trash
+        private void DeleteSelectedTemplate()
+        {
+            var item = templateCombo.SelectedItem as TemplateItem;
+            if (item == null || string.IsNullOrEmpty(item.Id))
+            {
+                SetStatus("先在下拉里选中要删除的模板"); return;
+            }
+            var answer = MessageBox.Show(this,
+                "删除模板「" + item.Name + "」？\n\n文件会移到 _trash（可恢复）。",
+                "确认删除", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (answer != DialogResult.OK) return;
+            try
+            {
+                var r = Obj(Api("DELETE", "/report/templates/" + Uri.EscapeDataString(item.Id), null));
+                SetStatus(r.ContainsKey("ok") && Convert.ToBoolean(r["ok"])
+                    ? "已删除模板：" + item.Name
+                    : "删除失败：" + ToStr(r, "error"));
+                RefreshTemplates();
+            }
+            catch (Exception ex) { SetStatus("删除失败：" + ex.Message); }
         }
 
         private void LoadSelection()
