@@ -216,6 +216,10 @@ export default {
 
       const WORKFLOW = [
         '1 读档案：experiment_get（没有就先 experiment_create，把模板/要求/数据路径填进去）',
+        '1.5 确认模板：动手之前先在会话里问用户「老师发的实验报告模板是哪个 .docx？」',
+        '    有模板 → lab_report_template(path) 导入，模板决定封面字段和章节；',
+        '    用户明确说没有 → 用内置封面（课程名称/专业年级/学期/学号/姓名），report_generate 传 useBuiltin:true',
+        '    不要默认套通用模板：实测会因格式对不上整份返工',
         '2 读经验：note_list(software) —— 先看这个软件踩过什么坑、按钮在哪',
         '3 归位窗口：desktop_place(process|windowTitle, width, height) —— 固定矩形，截图与坐标才可复用',
         '4 逐步执行：粒度按文档自己的分节/编号走（文档说一次做完就一次做完），每步一次截图 → 立即 desktop_screenshot → 校验预期变化',
@@ -628,8 +632,10 @@ export default {
               experimentId: plan.experiment && plan.experiment.id,
               requirementPath: plan.requirementPath || '',
               error: '还没有报告模板：现在生成会套用内置通用模板，章节和老师要求对不上。',
+              askUser: '请在会话里问用户：老师发的实验报告模板（.docx）是哪个文件？拿到路径后先导入再生成。',
               hint: '把老师的 .docx 模板路径传给 lab_report_template(path) 导入（只需一次），'
-                + '或直接给 report_generate 传 templatePath；确实要用通用模板时传 useBuiltin:true。',
+                + '用户明确说没有模板时传 useBuiltin:true —— 会用学校实验报告那套封面（课程名称/专业年级/学期/学号/姓名），'
+                + '专业年级、学期这类填不了的留【待补】，不会瞎编。',
               howTo: [
                 'lab_report_template(path:"D:\\我校模板\\实验报告模板.docx")  ← 导入模板',
                 'lab_report_generate(experimentId:"...", templateId:"...")        ← 再生成',
