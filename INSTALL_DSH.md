@@ -23,6 +23,20 @@ DSH 按 `package.json` 的 `main: index.js` 加载插件，并按 `dsh.bundle.pa
 
 数据目录默认 `~/.dsh/lab-assistant`，可用 `DSH_HOME` 或 `LAB_ASSISTANT_HOME` 改。
 
+## 查看当前版本 & 升级
+
+**查版本**：在 DSH 对话里说「用实验助手读一下状态」，返回里的 `version` 就是当前加载的版本；
+也可以直接看插件目录 `package.json` 的 `version`。最新版本号看
+[Releases 页面](https://github.com/oddeye4649/dsh-lab-assistant/releases) 第一条，或 README 顶部「当前版本」。
+
+**插件不会自动更新，也没有新版本提醒** —— 旧版会一直停在旧版，要手动更新一次：
+
+1. 用**同一个链接**在 DSH 插件安装入口重新装一次；或下载最新 Release 里的 `.tgz`，交给桌面端 `plugin_manager` 安装。
+2. **完全退出 DSH（包括右下角托盘图标）再重新打开**，否则进程里跑的还是旧代码。
+3. 再查一次状态，版本号应等于最新 Release 的版本号。
+
+数据目录默认 `~/.dsh/lab-assistant`，**升级不用动它**：实验档案、模板、经验、截图全部保留，不会被覆盖。
+
 ## 边界
 
 - 桌宠、UIA 控件树、截图、点击穿透高亮这些能力依赖 DSH 桌面宿主，只有这一侧完整可用。

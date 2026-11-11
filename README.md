@@ -161,6 +161,20 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 - **桌面端没有面板/桌宠**：确认用的是 Windows 桌面端而不是 Web/Docker profile；Web profile 只提供对话工具。
 - **状态里素材显示缺失**：0.15.7 起按 `动作_序号.png` 统计，返回 `frames` 字段可看到每组实际帧数。
 
+### 升级与查看版本
+
+插件**不会自动更新，也没有新版本提醒**；旧版会一直停在旧版，需要手动更新一次。
+
+| 想做什么 | 怎么做 |
+|---|---|
+| 查当前版本 | 对话里说「用实验助手读一下状态」，看返回的 `version`；或直接读插件目录 `package.json` 的 `version` |
+| 查最新版本 | 看 [Releases 页面](https://github.com/oddeye4649/dsh-lab-assistant/releases) 第一条，或本页顶部「当前版本」 |
+| DSH 升级 | 用同一链接在插件安装入口重装 / 下载最新 `.tgz` 交给 `plugin_manager` → **完全退出 DSH（含托盘）再打开** |
+| WorkBuddy 升级 | 在自己 clone 的目录 `git pull --ff-only` → `--stop` 后重启桌面启动器 → **重启 WorkBuddy** |
+
+两边的**数据目录都不用动**（默认 `~/.dsh/lab-assistant`）：实验档案、模板、经验、截图全部保留。
+详细步骤见 [INSTALL_DSH.md](INSTALL_DSH.md) / [INSTALL_WORKBUDDY.md](INSTALL_WORKBUDDY.md) 的「升级」章节。
+
 ## 使用
 
 1. 安装并重启 DSH，桌面右下角出现大肥鱼（首次启动会自动编译伴随进程，约几秒）；
@@ -422,6 +436,16 @@ npm pack
 - `npm pack` 生成的 `.tgz` 作为可下载安装包。
 
 `package.json` 已填好 `repository` / `homepage` / `bugs`（指向 `oddeye4649/dsh-lab-assistant`），发布步骤与 DSH 市场上架方式见 [docs/RELEASE.md](docs/RELEASE.md)。
+
+### 发新版本时的固定清单
+
+版本号必须在 **5 处对齐**，缺一处 `publish:check` 或 Release 就会出问题：
+
+`package.json.version` → `CHANGELOG.md` 的 `## [版本]` 小节 → git tag `v<版本>` → Release 标题与 `dsh-lab-assistant-<版本>.tgz` → 本页顶部「当前版本」。
+
+**只推 tag，不要手动建 Release**：推送 `v*` 标签会触发 `release.yml`，自动跑验证、`npm pack`、建（或更新）Release 并上传附件。
+该 workflow 是**幂等**的 —— Release 已存在时改为更新正文并覆盖同名附件，不会因撞名报 `a release with the same tag name already exists`。
+安装说明与附件 SHA-256 由 workflow 自动追加到 Release 正文；希望用户看到的内容（改了什么、怎么升级）写进 `CHANGELOG.md` 对应版本小节即可，它会成为 Release 说明。
 
 ## 安全与隐私
 

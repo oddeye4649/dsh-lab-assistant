@@ -39,8 +39,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           npm pack --pack-destination dist
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: pwsh
         run: |
-          gh release create "${{ github.ref_name }}" dist/*.tgz --notes-file RELEASE_NOTES.md --title "实验助手 ${{ github.ref_name }}"
+          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/create-release.ps1 -Tag "${{ github.ref_name }}" -Title "实验助手 ${{ github.ref_name }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

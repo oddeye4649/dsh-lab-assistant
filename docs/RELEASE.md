@@ -59,9 +59,15 @@ git push origin v<版本号>
 推送标签后，GitHub Action 会：
 
 1. 在 Windows 上运行测试和插件自检；
-2. 执行 `npm pack`；
-3. 创建 GitHub Release；
-4. 上传 `dsh-lab-assistant-<版本号>.tgz`。
+2. 从 `CHANGELOG.md` 抽当前版本小节作为 Release 说明，并自动追加「下载与安装」段（含附件 SHA-256）；
+3. 执行 `npm pack`；
+4. 建 GitHub Release 并上传 `dsh-lab-assistant-<版本号>.tgz`；
+   **若同名 Release 已存在，则改为更新正文 + 覆盖同名附件**，不会撞名失败。
+
+> **不要手动用 API / `gh release create` 再建一次同名 Release。** 0.16.1 就踩过：标签推送触发 workflow 后，
+> 又手工建了同名 Release，workflow 最后一步报 `a release with the same tag name already exists` 并给仓库 owner
+> 发了一封「All jobs have failed」邮件。前 6 步（verify / 抽说明 / 打包）其实都过了，但通知很难看。
+> 现在 workflow 已改成幂等，重跑同一标签也不会再失败。
 
 ## 5. 上架 DSH 插件市场
 
@@ -118,7 +124,9 @@ npm pack --dry-run
 
 同时确认：
 
-- **版本号三处一致**：`package.json.version` = `CHANGELOG.md` 的小节 = 要推的 `git tag`（`v<版本>`）；
+- **版本号五处对齐**：`package.json.version` = `CHANGELOG.md` 的 `## [版本]` 小节 = 要推的 `git tag`（`v<版本>`）
+  = Release 标题与 `dsh-lab-assistant-<版本>.tgz` = README 顶部「当前版本」。
+  每次发布都带版本号，别人才能判断自己是不是旧版、下载时不会拿错包、报问题时能精确说「我在 X.Y.Z」；
 - README 截图和当前界面一致（曾经出现过截图还是「预览页」且带着已移除的网页注入面板）；
 - 正式桌宠图已替换，manifest 指向正确；
 - 版本号和 DSH 兼容范围准确；
@@ -127,7 +135,9 @@ npm pack --dry-run
 
 ### 为什么不能省 CHANGELOG
 
-`release.yml` 用 `gh release create --notes-file RELEASE_NOTES.md`，说明**从 `CHANGELOG.md` 抽当前版本小节**。
+`release.yml` 会调用 `scripts/create-release.ps1`，把 `CHANGELOG.md` 里当前版本的小节写进
+`RELEASE_NOTES.md`（再追加 `scripts/release-notes-foot.md` 的「下载与安装」段），然后建或更新 Release。
+这两个脚本只供仓库 CI 使用，**不打进 `.tgz` 发布包**；装插件的人不需要它们。
 
 不用 `--generate-notes` 的原因很具体：`--generate-notes` 靠提交历史生成，而本项目为了洗掉历史里的
 口令与个人邮箱，**把历史压成了单个提交** —— 自动生成的说明会几乎为空。
@@ -140,9 +150,10 @@ npm pack --dry-run
 ### 发一版的最小流程
 
 ```bash
-# 1. 改版本 + 写变更（两处必须同时改）
+# 1. 改版本 + 写变更（五处必须同时对齐）
 #    package.json 的 version
-#    CHANGELOG.md 加一节：## [0.15.0] - YYYY-MM-DD
+#    CHANGELOG.md 加一节：## [0.15.0] - YYYY-MM-DD（正文写清改了什么、怎么升级）
+#    README.md 顶部「当前版本」
 npm run verify          # 版本一致性 + 敏感扫描 + 测试全过
 
 # 2. 提交 + 打标签（标签名必须与版本号一致）
@@ -151,9 +162,11 @@ git tag v0.15.0
 
 # 3. 推送（见第 8 节，只推要发布的分支）
 git push origin main && git push origin v0.15.0
+# 到这里就结束：Release 交给 workflow 建，不要手动再建一次
 ```
 
-标签推上去后 `release.yml` 会：跑 verify → 抽 CHANGELOG 段落 → `npm pack` → 建 GitHub Release 并附 `.tgz`。
+标签推上去后 `release.yml` 会：跑 verify → 抽 CHANGELOG 段落并追加安装说明 → `npm pack` → 建/更新 GitHub Release 并附 `.tgz`。
+到 [Releases 页面](https://github.com/oddeye4649/dsh-lab-assistant/releases) 核一眼正文和附件即可。
 
 ## 8. 推送前后：历史与远端核对
 
@@ -201,7 +214,7 @@ git log --all --oneline -S "<可疑字符串>"   # 例如硬编码的数据库�
 ```
 
 最后注意：**推送 `v*` 标签会触发 `.github/workflows/release.yml`**，它会跑
-`npm test` 与 `pack:check` 并创建 GitHub Release。标签打错要删，需同时删本地与远端：
+`npm test` 与 `pack:check` 并建（或更新）GitHub Release。标签打错要删，需同时删本地与远端：
 
 ```bash
 git tag -d v<版本> && git push origin :refs/tags/v<版本>
