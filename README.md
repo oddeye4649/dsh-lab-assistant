@@ -2,7 +2,14 @@
 
 面向高校实验课程的 DSH 桌宠式实验流程插件：桌宠负责指引与取证，工具集负责档案、经验与报告，DSH（模型）负责理解要求、判断界面、写正文。不伪造实验过程，不会在后台安装或卸载软件，也不修改系统设置。
 
-> 当前状态：`0.14.3` 开发版。本版是安全与稳定性补丁：教学校验命令加白名单、截图落点受限、口令不进命令行也不落盘、被拒绝的命令不再判为通过。面板已改为「资料库」（实验档案 / 新建实验 / 模板库 / 桌宠设置），报告在对话里生成；三种模式为代码级硬约束（`guided` 不代点）；教学循环支持「点一下桌宠」自动判断对错并进入下一步。完整变更见 [CHANGELOG.md](CHANGELOG.md)，安全边界见 [SECURITY.md](SECURITY.md)。
+> 当前版本 `0.16.0`。**一个仓库、一个链接，同时服务 DSH 与 WorkBuddy**：DSH 侧是桌宠式插件（含指位高亮、UIA 控件树、截图、教学循环），WorkBuddy 侧是 MCP 25 个工具 + 独立桌面启动器（桌宠面板和 DSH 里一样能点）。不伪造实验过程，不后台安装/卸载软件，不修改系统设置。完整变更见 [CHANGELOG.md](CHANGELOG.md)，安全边界见 [SECURITY.md](SECURITY.md)。
+
+| 你在用什么 | 看哪份 | 说明 |
+|---|---|---|
+| DSH 桌面版 | [INSTALL_DSH.md](INSTALL_DSH.md) | 把同一个 GitHub 链接给 DSH，只加载插件本体 |
+| WorkBuddy | [INSTALL_WORKBUDDY.md](INSTALL_WORKBUDDY.md) | 把同一个 GitHub 链接给 WorkBuddy 让它装，含桌面启动器 |
+| 想看懂代码分类 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 共享核心 / DSH 专属 / WorkBuddy 专属 |
+
 
 ![实验助手面板](docs/screenshots/panel.png)
 
@@ -162,27 +169,59 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 4. 报告生成在 `experiments/<实验编号>/reports/` 下，面板里可一键打开所在文件夹；
 5. 对 DSH 直接说话也可以完成同样的事（工具名见下表）。
 
-## 在 WorkBuddy 里使用（MCP）
+## 在 WorkBuddy 里使用（MCP + 桌面启动器）
 
-插件同时提供一个**零依赖 MCP server**，让 WorkBuddy 这类支持 MCP 的宿主也能用同一套能力。
+WorkBuddy 侧有两个入口，**共用同一份实验档案**：
+
+- **桌面启动器**（`desktop/start.mjs`）：桌宠 + 「实验助手」面板，和 DSH 里一样能点着建实验、导模板、生成报告；托盘常驻，右键可开面板 / 勾开机自启 / 退出。仅 Windows。
+- **MCP 适配器**（`mcp/server.mjs`）：25 个工具，在对话里直接说就行。
+
+启动器在跑时，MCP 会自动把工具调用**转发**给它，由它作为唯一的数据写入点——面板和对话同时改同一份档案也不会互相覆盖（并发各 6 次建实验实测 12 条不丢）。启动器没开时 MCP 独立运行，功能一样可用。
+
+### 让 Agent 一键装好
+
+把这个链接发给 WorkBuddy，说「按这个链接装一下」：
+
+```
+https://github.com/oddeye4649/dsh-lab-assistant
+```
+
+Agent 会按 [INSTALL_WORKBUDDY.md](INSTALL_WORKBUDDY.md) 执行 clone → 追加 `mcp.json` → 启动桌面启动器 → 逐步验证，不用你手敲命令。**同一个链接在 DSH 里给，就按 [INSTALL_DSH.md](INSTALL_DSH.md) 只加载插件本体**；文件会一起下载，但不加载、不启动进程。
+
+### 手动接上（四步）
+
+1. 装 **Node 22 或更新版本**；拉代码（公开仓库，不需要账号）：
+   `git clone https://github.com/oddeye4649/dsh-lab-assistant.git`
+2. 在 `~/.workbuddy/mcp.json` 的 `mcpServers` 里**追加**一条（只加这一条，别覆盖已有的连接器）：
 
 ```jsonc
-// ~/.workbuddy/mcp.json
+// ~/.workbuddy/mcp.json —— Windows 路径请用正斜杠
 {
   "mcpServers": {
     "lab-assistant": {
-      "command": "<node 可执行文件绝对路径>",
-      "args": ["<插件目录>/mcp/server.mjs"],
+      "command": "node",
+      "args": ["C:/Users/<你的用户名>/dsh-lab-assistant/mcp/server.mjs"],
       "env": {}
     }
   }
 }
 ```
 
+   `args` 里换成你自己 clone 出来的目录；只有 `node` 不在 PATH 时，才把 `command` 换成 node.exe 的绝对路径。**不要直接抄别人机器上的 `D:\...` 路径。**
+3. 重启 WorkBuddy → 连接器页面找到 `lab-assistant` → 点「**信任**」→ 新开一个对话。
+4. 后台运行 `node <仓库目录>/desktop/start.mjs`，桌面出现大肥鱼和托盘图标。
+   `--status` 查状态、`--stop` 干净退出；开机自启**默认关闭**，托盘右键「开机自动启动」可勾选。
+   首次启动会自动编译桌宠（系统自带 .NET Framework，约几秒）。
+
+### 第一次用，照抄这句
+
+> 用实验助手（lab-assistant）帮我做《XXX》实验：先读标准流程，然后建实验档案，导入我给的模板文件，最后按老师模板生成报告草稿。
+
+之后常用指令：「列一下我的实验」「在 XX 实验第 3 步记录实测值 …」「把这份模板绑到 XX 实验」「生成实验报告」「记一条软件经验：…」「查 XX 软件有没有已验证版本」「给这个报错出个修复方案」。模型会自己挑对应工具；不确定顺序时先说「读一下标准流程（lab_workflow）」。
+
 - **数据目录**：默认与 DSH 插件共用 `~/.dsh/lab-assistant`（同一个实验档案两边都能看到）；用 `LAB_ASSISTANT_HOME` 可单独指定。
 - **能力**：25 个工具——实验创建/读取/记录结果/克隆/删除、报告模板/大纲/生成/增量更新、经验查询与采集开关、兼容建议、修复计划/记录、环境只读探测、软件目录、标准工作流。
-- **边界**：桌宠、UIA 控件树、截图、点击指引这些依赖 DSH 桌面宿主的能力，在 MCP 下不可用；其余业务能力完整。
-- **配置后需要在宿主的连接器页面「信任」这个 server 才会生效。**
+- **边界**：指位高亮、UIA 控件树、PrintWindow 截图、逐步引导依赖 DSH 桌面宿主，WorkBuddy 下不可用；桌宠面板里的建实验 / 模板 / 报告 / 设置都可用。桌宠是 WinForms，仅 Windows；Mac / Linux 只能用 MCP 那 25 个工具。插件不代替你点击软件，也不编造实验数据。
 
 ## DSH 工具
 

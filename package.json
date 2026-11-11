@@ -1,6 +1,6 @@
 {
   "name": "dsh-lab-assistant",
-  "version": "0.15.26",
+  "version": "0.16.0",
   "description": "实验助手：面向高校实验课程的 DSH 桌宠式流程、环境诊断与报告辅助插件",
   "keywords": [
     "dsh",
@@ -21,6 +21,9 @@
     "index.js",
     "lib",
     "mcp",
+    "desktop",
+    "INSTALL_DSH.md",
+    "INSTALL_WORKBUDDY.md",
     "assets",
     "coursepacks",
     "overlay",
@@ -48,7 +51,8 @@
     "docs/SOFTWARE_CATALOG.md",
     "docs/VERIFICATION_2026-10-28.md",
     "docs/DIAGNOSIS_template-upload.md",
-    "docs/PANEL_CONTRACT.md"
+    "docs/PANEL_CONTRACT.md",
+    "docs/ARCHITECTURE.md"
   ],
   "engines": {
     "dsh": ">=0.2.0",
@@ -83,6 +87,7 @@
     "access": "public"
   },
   "bin": {
-    "lab-assistant-mcp": "mcp/server.mjs"
+    "lab-assistant-mcp": "mcp/server.mjs",
+    "lab-assistant-desktop": "desktop/start.mjs"
   }
 }

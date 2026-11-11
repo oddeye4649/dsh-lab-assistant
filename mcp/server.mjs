@@ -4,10 +4,11 @@
 //
 // 与 DSH 插件的关系：复用同一套 lib/core.mjs 业务门面，数据目录默认也共用
 // ~/.dsh/lab-assistant（可用 LAB_ASSISTANT_HOME 覆盖），所以两边看到的是同一批实验档案。
+// 若 WorkBuddy 桌面启动器在跑，工具调用会转发给它，由它作为唯一写入点。
 import { createInterface } from 'node:readline'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readFileSync } from 'node:fs'
+import { readFileSync, unlinkSync } from 'node:fs'
 import { homedir } from 'node:os'
 
 import { ExperimentStore } from '../lib/store.mjs'
@@ -34,7 +35,7 @@ try {
     store,
     version: VERSION,
     assetsRoot: join(PACKAGE_ROOT, 'assets'),
-    hostNotes: ['通过 WorkBuddy MCP 适配器调用；桌面桌宠与 UIA 截图能力依赖 DSH 宿主，此处不可用'],
+    hostNotes: ['通过 WorkBuddy MCP 适配器调用；若桌面启动器在运行，写操作由它统一执行'],
     overlay: null,
     knowledge,
   })
@@ -457,7 +458,43 @@ function normalizeArgs(method, rawArgs) {
   return args
 }
 
-function callTool(name, args) {
+// ---- 桌面启动器转发桥 ----
+// 发现文件存在且进程活着时，本 MCP 不直接写 store，而是把工具调用转给桌面启动器，
+// 保证任何时刻只有一个写入点。启动器没开时退回本地模式（此时也只有本进程在写）。
+const DISCOVERY_FILE = join(HOME, 'desktop.json')
+
+function readBridge() {
+  let d
+  try {
+    d = JSON.parse(readFileSync(DISCOVERY_FILE, 'utf8'))
+  } catch { return null }
+  if (!Number.isInteger(d.port) || d.port <= 0 || !String(d.token || '')) return null
+  if (!bridgeAlive(d)) {
+    // 启动器被强杀 / 崩溃后，退出钩子来不及清理发现文件。
+    // 进程确定已不在了，删掉残留，之后安全地退回本地模式。
+    try { unlinkSync(DISCOVERY_FILE) } catch { }
+    return null
+  }
+  return d
+}
+function bridgeAlive(d) {
+  if (!Number.isInteger(d.pid) || d.pid <= 0) return false
+  try { process.kill(d.pid, 0); return true } catch { return false }
+}
+async function forwardToDesktop(d, methodName, args) {
+  const url = `http://127.0.0.1:${d.port}/dsh-lab/api/tool?token=${encodeURIComponent(d.token)}`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ method: methodName, args }),
+    signal: AbortSignal.timeout(60000),
+  })
+  const body = await response.json()
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${body?.error || '桌面服务返回错误'}`)
+  return body
+}
+
+async function callTool(name, args) {
   const tool = TOOLS.find((t) => t.name === name)
   if (!tool) return { isError: true, text: `未知工具：${name}` }
   if (typeof core[tool.method] !== 'function') {
@@ -465,11 +502,21 @@ function callTool(name, args) {
   }
   try {
     const normalized = normalizeArgs(tool.method, args)
-    const result = core[tool.method](normalized)
-    if (result && typeof result.then === 'function') {
-      return { promise: result }
+    const bridge = readBridge()
+    if (bridge && bridgeAlive(bridge)) {
+      // 桥在就不降级：降级会让两个进程同时写同一份档案，静默丢数据比明确报错更糟。
+      try {
+        const result = await forwardToDesktop(bridge, tool.method, normalized)
+        return { text: JSON.stringify(result, null, 2) }
+      } catch (error) {
+        return {
+          isError: true,
+          text: `桌面服务无响应（${error?.message || error}）。请看 node desktop/start.mjs --status，或执行 --stop 后重试。为避免两份数据互相覆盖，本次没有改动本地档案。`,
+        }
+      }
     }
-    return { text: JSON.stringify(result, null, 2) }
+    const result = await core[tool.method](normalized)
+    return { text: JSON.stringify(result == null ? { ok: true } : result, null, 2) }
   } catch (error) {
     return { isError: true, text: `执行失败：${error?.message || error}` }
   }
@@ -502,15 +549,7 @@ async function handle(message) {
   if (method === 'tools/call') {
     const name = params?.name
     const args = params?.arguments || {}
-    const outcome = callTool(name, args)
-    let result = outcome
-    if (outcome.promise) {
-      try {
-        result = { text: JSON.stringify(await outcome.promise, null, 2) }
-      } catch (error) {
-        result = { isError: true, text: `执行失败：${error?.message || error}` }
-      }
-    }
+    const result = await callTool(name, args)
     if (result.isError) {
       return ok(id, { content: [{ type: 'text', text: result.text }], isError: true })
     }
@@ -526,6 +565,10 @@ async function handle(message) {
 const missing = TOOLS.filter((t) => typeof core[t.method] !== 'function')
 if (missing.length) {
   process.stderr.write(`[lab-assistant-mcp] 以下工具映射的方法不存在：${missing.map((t) => `${t.name}→${t.method}`).join(', ')}\n`)
+}
+const bootBridge = readBridge()
+if (bootBridge && bridgeAlive(bootBridge)) {
+  process.stderr.write('[lab-assistant-mcp] 已连接桌面启动器，工具调用将转发给它（单一写入点）\n')
 }
 
 let inflight = 0

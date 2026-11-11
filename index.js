@@ -16,6 +16,7 @@ import { loadHostDeps } from './lib/hostdeps.mjs'
 import { isTrustedLocalRequest, readJsonBody, sendJson } from './lib/http.mjs'
 import { KnowledgeBase, safeKnowledgeCall } from './lib/knowledge.mjs'
 import { matchAnchor, anchorFromScreenshot } from './lib/anchor.mjs'
+import { createApiHandler } from './lib/api.mjs'
 
 const PACKAGE_ROOT = dirname(fileURLToPath(import.meta.url))
 const hostDeps = await loadHostDeps()
@@ -1400,155 +1401,17 @@ experiment_update(status:"archived") 归档并把 actions 明细压成聚合摘�
       const json = (res, status, value) => sendJson(res, status, value)
       const fail = (res, error, status = 400) => json(res, status, { ok: false, error: String(error?.message || error || '请求失败') })
 
-      async function api(req, res, pathname, searchParams) {
-        if (req.method === 'GET' && pathname === '/dsh-lab/api/status') {
-          return json(res, 200, { ok: true, plugin: 'dsh-lab-assistant', version: packageVersion(), ...store.status(), assets: assetStatus(), catalog: catalogHighlights(), homeDir: store.homeDir, experimentsDir: store.experimentsDir })
-        }
-        if (pathname === '/dsh-lab/api/settings') {
-          if (req.method === 'GET') return json(res, 200, { ok: true, settings: store.getSettings() })
-          if (req.method === 'PUT' || req.method === 'PATCH') {
-            const body = await readJsonBody(req)
-            // 空 dataDir 多半是面板还没拿到 /status（例如启动竞态），
-            // 直接落盘会把用户自定义的数据目录清空。真要恢复默认必须显式传 resetDataDir:true。
-            if (body && body.resetDataDir === true) body.dataDir = ''
-            if (body && typeof body.dataDir === 'string' && !body.dataDir.trim()
-              && store.getSettings().dataDir && body.resetDataDir !== true) {
-              delete body.dataDir
-            }
-            const settings = store.updateSettings(body)
-            // 改了数据目录就地重建 store，新实验立即落到新位置（旧数据不动）
-            if ('dataDir' in (body || {})) {
-              store = new ExperimentStore(baseHome)
-              knowledge.store = store // 知识库仍指向同一个 homeDir，但设置读取要走新实例
-            }
-            return json(res, 200, { ok: true, settings: store.getSettings(), experimentsDir: store.experimentsDir })
-          }
-          return json(res, 405, { ok: false, error: '只支持 GET、PUT 或 PATCH' })
-        }
-        if (pathname === '/dsh-lab/api/experiments') {
-          if (req.method === 'GET') {
-            return json(res, 200, {
-              ok: true,
-              experiments: store.listExperiments({
-                status: searchParams.get('status') || '',
-                query: searchParams.get('q') || '',
-              }),
-            })
-          }
-          if (req.method === 'POST') {
-            const body = await readJsonBody(req)
-            // 走 core 而不是 store：core 会把 templateId / reportTemplate 归一成互为别名，
-            // 面板只传 reportTemplate 也要在档案里落下 templateId，否则后续按 templateId 找模板会落空。
-            const created = core.experimentCreate(body)
-            petMood('happy', '新实验档案建好啦，主人加油～')
-            return json(res, 201, { ok: true, experiment: created.experiment, knowledge: created.knowledge })
-          }
-          return json(res, 405, { ok: false, error: '只支持 GET 或 POST' })
-        }
-        const deleteExperimentMatch = /^\/dsh-lab\/api\/experiments\/([^/]+)$/.exec(pathname)
-        if (deleteExperimentMatch && req.method === 'DELETE') {
-          try {
-            const removed = store.deleteExperiment(decodeURIComponent(deleteExperimentMatch[1]))
-            return json(res, 200, { ok: true, ...removed, note: '已移入 _trash，需要时可手动恢复' })
-          } catch (error) {
-            return json(res, 400, { ok: false, error: error.message })
-          }
-        }
-        const deleteTemplateMatch = /^\/dsh-lab\/api\/report\/templates\/([^/]+)$/.exec(pathname)
-        if (deleteTemplateMatch && req.method === 'DELETE') {
-          try {
-            const removed = deleteTemplate(store.homeDir, decodeURIComponent(deleteTemplateMatch[1]))
-            return json(res, 200, { ok: true, ...removed, note: '已移入 _trash，需要时可手动恢复' })
-          } catch (error) {
-            return json(res, 400, { ok: false, error: error.message })
-          }
-        }
-        const resultMatch = /^\/dsh-lab\/api\/experiments\/([^/]+)\/results$/.exec(pathname)
-        if (resultMatch && req.method === 'POST') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, { ok: true, experiment: store.recordStepResult(decodeURIComponent(resultMatch[1]), body) })
-        }
-        const experimentMatch = /^\/dsh-lab\/api\/experiments\/([^/]+)$/.exec(pathname)
-        if (experimentMatch) {
-          const id = decodeURIComponent(experimentMatch[1])
-          if (req.method === 'GET') return json(res, 200, { ok: true, experiment: store.getExperiment(id) })
-          if (req.method === 'PATCH') {
-            const body = await readJsonBody(req)
-            return json(res, 200, { ok: true, experiment: store.updateExperiment(id, body) })
-          }
-          return json(res, 405, { ok: false, error: '只支持 GET 或 PATCH' })
-        }
-        if (req.method === 'GET' && pathname === '/dsh-lab/api/desktop/visible') {
-          const status = await overlayStatus()
-          return json(res, 200, { ok: true, running: Boolean(status.running) })
-        }
-        if (req.method === 'GET' && pathname === '/dsh-lab/api/catalog') {
-          return json(res, 200, {
-            ok: true,
-            ...searchCatalog({
-              discipline: searchParams.get('discipline') || '',
-              priority: searchParams.get('priority') || '',
-              query: searchParams.get('q') || '',
-            }),
-          })
-        }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/advise') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, {
-            ok: true,
-            ...(await adviseCompatibility({
-              software: String(body.software || 'ensp'),
-              currentlyWorking: body.currentlyWorking === true,
-            })),
-          })
-        }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/repair') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, await planRepair({
-            software: String(body.software || 'ensp'),
-            symptom: String(body.symptom || ''),
-            homeDir: store.homeDir,
-          }))
-        }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/repair/record') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, recordRepair(store.homeDir, body))
-        }
-        // 模板接口同时接受单数与复数两种写法。
-        // 桌面面板一直发的是复数 `/report/templates`（与 GET 列表、DELETE 删除保持一致），
-        // 而这里早期只注册了单数 POST，导致面板「导入模板」稳定 404、用户看到
-        // 「模板导入失败：…(404) 未找到」。保留单数是为了不破坏已发布的调用方，
-        // 也为了让已编译的旧面板不必重装就能恢复。
-        const isTemplatePath = pathname === '/dsh-lab/api/report/templates'
-          || pathname === '/dsh-lab/api/report/template'
-        if (isTemplatePath && req.method === 'GET') {
-          return json(res, 200, await core.reportTemplate({}))
-        }
-        if (isTemplatePath && req.method === 'POST') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, await core.reportTemplate(body))
-        }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/report/plan') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, await core.reportPlan(body))
-        }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/report/generate') {
-          const body = await readJsonBody(req, 16 * 1024)
-          try {
-            const result = await core.reportGenerate(body)
-            if (result.ok) petMood('happy', '报告生成好啦，记得核对【待补】的地方～')
-            return json(res, 200, result)
-          } catch (error) {
-            petMood('confused', '报告生成出错了，我看看哪里不对…')
-            throw error
-          }
-        }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/probe') {
-          const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, { ok: true, probe: await probeEnvironment({ software: String(body.software || '') }) })
-        }
-        return json(res, 404, { ok: false, error: '接口不存在' })
-      }
+      const api = createApiHandler({
+        store,
+        core,
+        knowledge,
+        homeDir: baseHome,
+        version: packageVersion(),
+        assetStatus,
+        petMood,
+        overlayStatus,
+        replaceStore: (next) => { store = next },
+      })
 
       const route = {
         kind: 'prefix',

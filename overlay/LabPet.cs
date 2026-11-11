@@ -36,11 +36,14 @@ namespace LabPet
         internal static string ApiBase = "";
         internal static string ApiToken = "";
         internal static string PetPath = "";
+        internal static NotifyIcon Tray;
 
         [STAThread]
         internal static void Main(string[] args)
         {
             int port = 0; string token = ""; string petPath = ""; string configDir = "";
+            bool tray = false;
+            for (int i = 0; i < args.Length; i++) if (args[i] == "--tray") tray = true;
             for (int i = 0; i < args.Length - 1; i++)
             {
                 switch (args[i])
@@ -67,7 +70,81 @@ namespace LabPet
             Bubble.Show();
             Bubble.Hide();
             Pet = new PetForm(petPath);
+            // 托盘常驻只在 WorkBuddy 独立启动器下开启：关掉面板不退出，
+            // 右键可开面板 / 勾开机自启 / 干净退出。DSH 下行为保持原样。
+            if (tray) SetupTray(petPath);
             Application.Run(Pet);
+            if (Tray != null)
+            {
+                try { Tray.Visible = false; Tray.Dispose(); } catch { }
+                Tray = null;
+            }
+        }
+
+        private static void SetupTray(string petPath)
+        {
+            try
+            {
+                Icon icon;
+                try
+                {
+                    using (var bmp = new Bitmap(petPath)) icon = Icon.FromHandle(bmp.GetHicon());
+                }
+                catch { icon = SystemIcons.Application; }
+
+                var menu = new ContextMenuStrip();
+                var miOpen = new ToolStripMenuItem("打开实验助手面板");
+                miOpen.Click += delegate { TogglePanel(Pet.Left, Pet.Top, Config.petSize); };
+                menu.Items.Add(miOpen);
+
+                var miAuto = new ToolStripMenuItem("开机自动启动");
+                miAuto.CheckOnClick = false;
+                try
+                {
+                    var state = ApiJson("GET", "/desktop/autostart", null);
+                    miAuto.Checked = state != null && state.ContainsKey("enabled") && Convert.ToBoolean(state["enabled"]);
+                }
+                catch { miAuto.Checked = false; }
+                miAuto.Click += delegate
+                {
+                    bool next = !miAuto.Checked;
+                    try
+                    {
+                        var body = Json.Serialize(new Dictionary<string, object> { { "enabled", next } });
+                        var saved = ApiJson("POST", "/desktop/autostart", body);
+                        if (saved != null && saved.ContainsKey("ok") && Convert.ToBoolean(saved["ok"])) miAuto.Checked = next;
+                    }
+                    catch { /* 请求失败就保持原状态，不误显示成已开启 */ }
+                };
+                menu.Items.Add(miAuto);
+                menu.Items.Add(new ToolStripSeparator());
+
+                var miQuit = new ToolStripMenuItem("退出实验助手");
+                miQuit.Click += delegate { QuitThisPet(); };
+                menu.Items.Add(miQuit);
+
+                Tray = new NotifyIcon { Icon = icon, Text = "实验助手", ContextMenuStrip = menu, Visible = true };
+                Tray.DoubleClick += delegate { TogglePanel(Pet.Left, Pet.Top, Config.petSize); };
+            }
+            catch { /* 托盘创建失败不影响桌宠本体与面板 */ }
+        }
+
+        // 托盘菜单用的极简本机 API 调用；PanelForm 里的 Api() 是面板专用，这里不复用。
+        private static Dictionary<string, object> ApiJson(string method, string path, string json)
+        {
+            var request = (HttpWebRequest)WebRequest.Create(ApiBase + path + "?token=" + ApiToken);
+            request.Method = method;
+            request.Timeout = 3000;
+            if (json != null)
+            {
+                request.ContentType = "application/json";
+                var bytes = Encoding.UTF8.GetBytes(json);
+                request.ContentLength = bytes.Length;
+                using (var stream = request.GetRequestStream()) stream.Write(bytes, 0, bytes.Length);
+            }
+            using (var response = request.GetResponse())
+            using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                return Json.Deserialize<Dictionary<string, object>>(reader.ReadToEnd());
         }
 
         internal static void InvokeOnPet(Action action)
@@ -184,6 +261,7 @@ namespace LabPet
         internal static void QuitThisPet()
         {
             try { if (Panel != null && !Panel.IsDisposed) Panel.Close(); } catch { }
+            if (Tray != null) { try { Tray.Visible = false; } catch { } }
             new Thread(delegate () { Thread.Sleep(120); Application.Exit(); }).Start();
         }
     }
