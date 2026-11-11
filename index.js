@@ -5,14 +5,17 @@ import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { ExperimentStore } from './lib/store.mjs'
+import { createCore } from './lib/core.mjs'
 import { probeEnvironment } from './lib/probe.mjs'
 import { catalogHighlights, searchCatalog } from './lib/catalog.mjs'
 import { adviseCompatibility } from './lib/advisor.mjs'
-import { RepairHistory, planRepair, recordRepair } from './lib/remedy.mjs'
-import { buildReportPlan, builtinProfile, deleteTemplate, generateReport, importTemplate, listTemplates, loadTemplate } from './lib/report.mjs'
+import { planRepair, recordRepair } from './lib/remedy.mjs'
+import { deleteTemplate } from './lib/report.mjs'
 import { startOverlay, stopOverlay, overlayStatus, overlayRequest } from './lib/overlay.mjs'
 import { loadHostDeps } from './lib/hostdeps.mjs'
 import { isTrustedLocalRequest, readJsonBody, sendJson } from './lib/http.mjs'
+import { KnowledgeBase, safeKnowledgeCall } from './lib/knowledge.mjs'
+import { matchAnchor, anchorFromScreenshot } from './lib/anchor.mjs'
 
 const PACKAGE_ROOT = dirname(fileURLToPath(import.meta.url))
 const hostDeps = await loadHostDeps()
@@ -51,9 +54,14 @@ function normalizeArray(value) {
 
 function assetStatus() {
   const petDir = join(PACKAGE_ROOT, 'assets', 'pet')
-  const states = ['idle.png', 'swim.png', 'point.png', 'happy.png', 'confused.png']
+  let files = []
+  try { files = readdirSync(petDir) } catch { files = [] }
+  const hasGroup = (base) => files.some((name) => name === `${base}.png` || (name.startsWith(`${base}_`) && name.endsWith('.png')))
+  const countGroup = (base) => files.filter((name) => name === `${base}.png` || (name.startsWith(`${base}_`) && name.endsWith('.png'))).length
+  const groups = ['idle', 'swim', 'dash', 'point', 'happy', 'confused']
   return {
-    states: Object.fromEntries(states.map((name) => [name, existsSync(join(petDir, name))])),
+    states: Object.fromEntries(groups.map((name) => [`${name}.png`, hasGroup(name)])),
+    frames: Object.fromEntries(groups.map((name) => [name, countGroup(name)])),
     icon: existsSync(join(PACKAGE_ROOT, 'assets', 'icon.png')),
     note: '桌宠素材由桌面伴随进程直接读取本地文件；网页内不再注入桌宠。',
   }
@@ -71,6 +79,16 @@ export default {
       let store = new ExperimentStore(baseHome)
       const settingsAtBoot = mergeConfig(config, store.getSettings())
       store.updateSettings(settingsAtBoot)
+      // 经验闭环：一个库实例同时给 core 和这里的桌面工具用，避免两份缓存不一致。
+      const knowledge = new KnowledgeBase(store)
+      const core = createCore({
+        store,
+        version: packageVersion(),
+        assetsRoot: join(PACKAGE_ROOT, 'assets'),
+        hostNotes: hostDeps.notes,
+        overlay: { clear: () => overlayCall('/clear', {}) },
+        knowledge,
+      })
 
       // 桌面伴随进程：随 DSH 启动，插件卸载时退出。失败会降级为“不可用”，不影响对话工具。
       // 同时开一个仅本机、带 token 的 IPC 端口，把实验助手 API 提供给桌面面板调用。
@@ -150,6 +168,50 @@ export default {
         return overlay && overlay.connection ? overlay.connection : null
       }
 
+      // 软件名缺省推断：显式参数 → 当前实验档案 → 窗口标题/进程名。
+      // agent 只传 controlName 时不用再重复传一次 software。
+      function inferSoftware(args, fallback = '') {
+        const explicit = String(args.software || '').trim()
+        if (explicit) return explicit
+        try {
+          const id = store.currentExperimentId()
+          if (id) {
+            const software = String(store.getExperiment(id).software || '').trim()
+            if (software) return software
+          }
+        } catch { /* 没有绑定档案 */ }
+        return String(fallback || '').trim()
+      }
+
+      function boundExperimentId(args) {
+        const explicit = String(args.experimentId || '').trim()
+        if (explicit) return explicit
+        try { return store.currentExperimentId() } catch { return '' }
+      }
+
+      // L3 兜底：UIA 读不到时，用已存的锚点在当前窗口截图里做模板匹配。
+      // 只在该控件确实存过锚点时才截图，避免每次指引都多一次开销；匹配不到一律返回 null 降级。
+      async function anchorLocate(software, controlName, windowTitle, processName, expId) {
+        if (!software || !controlName) return null
+        const iface = safeKnowledgeCall(() => knowledge.getInterface(software), null)
+        const item = (iface?.controls || []).find((c) => c.name.toLowerCase() === String(controlName).toLowerCase())
+        if (!item || !item.anchor) return null
+        let anchorPng = null
+        try { anchorPng = readFileSync(item.anchor) } catch { return null }
+        const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
+        let out = join(os.tmpdir(), `dsh-lab-anchor-${stamp}.png`)
+        try {
+          if (expId) out = join(store.getExperiment(expId).workDir, 'screenshots', `anchor-${stamp}.png`)
+        } catch { /* 档案取不到就用临时目录 */ }
+        try {
+          const shot = await overlayCall('/screenshot', { title: windowTitle, process: processName, out })
+          if (!shot || !shot.ok || !shot.out) return null
+          const hit = matchAnchor(readFileSync(shot.out), anchorPng)
+          if (!hit) return null
+          return { rect: { x: hit.x, y: hit.y, w: hit.w, h: hit.h }, score: hit.score, shot: shot.out }
+        } catch { return null }
+      }
+
       function pageMapDir() {
         return join(store.homeDir, 'page-maps')
       }
@@ -214,35 +276,12 @@ export default {
         if (text) overlayRequest(connection, '/pet', { action: 'say', text, durationMs: 6500 })
       }
 
-      const WORKFLOW = [
-        '1 读档案：experiment_get（没有就先 experiment_create，把模板/要求/数据路径填进去）',
-        '1.5 确认模板：动手之前先在会话里问用户「老师发的实验报告模板是哪个 .docx？」',
-        '    有模板 → lab_report_template(path) 导入，模板决定封面字段和章节；',
-        '    用户明确说没有 → 用内置封面（课程名称/专业年级/学期/学号/姓名），report_generate 传 useBuiltin:true',
-        '    不要默认套通用模板：实测会因格式对不上整份返工',
-        '2 读经验：note_list(software) —— 先看这个软件踩过什么坑、按钮在哪',
-        '3 归位窗口：desktop_place(process|windowTitle, width, height) —— 固定矩形，截图与坐标才可复用',
-        '4 逐步执行：粒度按文档自己的分节/编号走（文档说一次做完就一次做完），每步一次截图 → 立即 desktop_screenshot → 校验预期变化',
-        '    通过才 record_result(passed=true, evidence=[截图])；不通过就 record_result(passed=false) 并停下问人',
-        '5 出报告：report_generate',
-        '6 读交接单：reports/handoff.md —— 缺口、该软件经验、每步实测都在里面',
-        '7 解释待补：把 pending 逐条说明原因（模板不匹配 / 没做到 / 需人工补数据），',
-          '    并明确告诉用户「这份报告还不能交」；文件顶部已加红色警示条，补全后重新生成才会消失',
-        '8 复盘写经验：note_add(software, kind, text) —— 坑 pitfall、位置 where、技巧 tip',
-        '',
-        '被挡时的替代方案：',
-        '- 控件读不到（eNSP / Weka）→ 整窗高亮 + 截图自己看位置，坐标记进 where',
-        '- 文件对话框输入不进去 → 让用户在面板「数据」行选一次，或命令行带参启动',
-        '- 里层菜单选不中 → 用命令行等价操作，并在报告里注明「GUI 未使用，CLI 执行」',
-        '- 点击后没变化 → 先怀疑控件被禁用，再怀疑坐标',
-      ].join('\n')
-
       tool({
         name: 'lab_workflow',
         description: '返回实验报告的标准执行流程（八步 + 被挡时的替代方案）。用户要求生成实验报告时先调它，再按顺序执行。',
         parameters: {},
         async execute() {
-          return { ok: true, workflow: WORKFLOW, mustExplainPending: true }
+          return core.workflow()
         },
       })
 
@@ -251,56 +290,7 @@ export default {
         description: '查看实验助手的本地状态：实验档案数量、默认称呼、桌宠资源、数据目录。用户提到“实验助手状态”“桌宠”“实验档案”时可调用。',
         parameters: {},
         async execute() {
-          const base = {
-            ok: true,
-            plugin: 'dsh-lab-assistant',
-            version: packageVersion(),
-            ...store.status(),
-            assets: assetStatus(),
-            catalog: catalogHighlights(),
-            readOnlyProbeAvailable: true,
-            hostDeps: hostDeps.notes,
-          }
-          // 多任务实验最需要的是「哪一步到哪了」：按 已执行 / 已配置 / 已截图 / 已记录 四态给出来
-          try {
-            const currentId = store.currentExperimentId()
-            const experiment = currentId ? store.getExperiment(currentId) : null
-            if (!experiment) return base
-            let screenshotCount = 0
-            try {
-              const dir = join(experiment.workDir, 'screenshots')
-              screenshotCount = existsSync(dir) ? readdirSync(dir).filter((f) => /\.(png|jpg|jpeg)$/i.test(f)).length : 0
-            } catch { screenshotCount = 0 }
-            const steps = (experiment.steps || []).map((step, index) => {
-              const recorded = Boolean(String(step.actual || '').trim()) || step.passed === true || step.passed === false
-              const executed = recorded || (step.status && step.status !== 'pending')
-              const configured = Boolean(String(step.where || '').trim()) || Boolean(String(step.notes || '').trim())
-              return {
-                index: index + 1,
-                title: step.title,
-                status: step.status || 'pending',
-                executed,
-                configured,
-                recorded,
-                passed: step.passed,
-                actual: String(step.actual || '').slice(0, 80),
-              }
-            })
-            base.currentExperiment = {
-              id: experiment.id,
-              title: experiment.title,
-              mode: store.currentMode(),
-              screenshotCount,
-              steps,
-              missing: {
-                notExecuted: steps.filter((x) => !x.executed).map((x) => x.title),
-                notRecorded: steps.filter((x) => !x.recorded).map((x) => x.title),
-                noScreenshot: screenshotCount === 0 ? '整个实验一张截图都没有' : '',
-              },
-              note: '四态含义：executed=执行过（有状态或实测）；configured=记录了位置/笔记；recorded=有实测值或通过判定；截图是实验级总数。',
-            }
-          } catch { /* 状态增强失败不影响主状态 */ }
-          return base
+          return core.status()
         },
       })
 
@@ -312,19 +302,14 @@ export default {
           course: { type: 'string', description: '课程名称，可省略' },
           software: { type: 'string', description: '实验软件，默认 eNSP' },
           mode: { type: 'string', description: 'guided=详细指导，automatic=自动执行，mixed=混合模式（默认）' },
-          reportTemplate: { type: 'string', description: '报告模板路径或名称，可省略' },
+          reportTemplate: { type: 'string', description: '报告模板：已导入模板的 ID 或名称（也可传 .docx 绝对路径），可省略' },
+          templateId: { type: 'string', description: '已导入模板的 ID（与 reportTemplate 等价，面板/模板库用这个），可省略' },
           requirementPath: { type: 'string', description: '实验要求文件路径（pdf/docx/图片），可省略' },
           datasetPath: { type: 'string', description: '本次实验使用的数据文件路径，可省略' },
           notes: { type: 'string', description: '备注，可省略' },
         },
         async execute(args) {
-          const manifest = store.createExperiment(args)
-          return {
-            ok: true,
-            experiment: manifest,
-            hint: '实验档案已建立。安装、卸载或修改系统设置仍需用户单独确认。',
-            isCurrent: (() => { try { return store.setCurrentExperiment(manifest.id) === manifest.id } catch { return false } })(),
-          }
+          return core.experimentCreate(args)
         },
       })
 
@@ -336,15 +321,7 @@ export default {
           confirm: { type: 'boolean', description: '必须显式传 true 才会删除，防止误调用' },
         },
         async execute(args) {
-          if (args.confirm !== true) {
-            return { ok: false, error: '删除需要显式传 confirm:true', hint: '请先向用户确认要删哪一份，再带 confirm:true 重试。' }
-          }
-          try {
-            const removed = store.deleteExperiment(String(args.experimentId || ''))
-            return { ok: true, deleted: removed, note: '已移入 _trash，需要时可手动恢复' }
-          } catch (error) {
-            return { ok: false, error: error.message }
-          }
+          return core.experimentDelete(args)
         },
       })
 
@@ -357,16 +334,7 @@ export default {
           notes: { type: 'string', description: '备注，可省略' },
         },
         async execute(args) {
-          if (!String(args.sourceId || '').trim()) return { ok: false, error: '需要 sourceId' }
-          const experiment = store.cloneExperiment(String(args.sourceId).trim(), {
-            title: args.title,
-            notes: args.notes,
-          })
-          return {
-            ok: true,
-            experiment: store.getExperiment(experiment.id),
-            hint: '骨架已复制，实测结果为空。按 where 提示逐条操作，完成后用 desktop_screenshot + experiment_record_result 记录。',
-          }
+          return core.experimentClone(args)
         },
       })
 
@@ -378,7 +346,7 @@ export default {
           query: { type: 'string', description: '按名称、课程或软件搜索，可省略' },
         },
         async execute(args) {
-          return { ok: true, experiments: store.listExperiments(args) }
+          return core.experimentList(args)
         },
       })
 
@@ -389,33 +357,19 @@ export default {
           id: { type: 'string', description: '实验编号，例如 exp-20261028-163000-a1b2' },
         },
         async execute(args) {
-          const experiment = store.getExperiment(String(args.id || ''))
-          const mode = String(experiment.mode || 'mixed')
-          const modeHint = mode === 'guided'
-            ? 'guided：每步都先说做什么、做完截图给人看；慢但最稳。'
-            : mode === 'automatic'
-              ? 'automatic：连续执行不打断，只在失败或不可逆操作前停下；快但风险高。'
-              : 'mixed：只读/可逆操作直接做，删除、清空、覆盖等不可逆操作先确认。'
-          try { store.setCurrentExperiment(experiment.id) } catch { /* 忽略 */ }
-          return { ok: true, experiment, modeHint, isCurrent: true }
+          return core.experimentGet(args)
         },
       })
 
       tool({
         name: 'lab_experiment_update',
-        description: '更新实验档案的标题、课程、软件、模式、状态、当前步骤、步骤清单或备注。不会执行软件操作。',
+        description: '更新实验档案的标题、课程、软件、模式、状态、当前步骤、步骤清单或备注。不会执行软件操作。状态设为 archived 时会把该实验的 actions 明细压成聚合摘要（原明细保留）。',
         parameters: {
           id: { type: 'string', description: '实验编号' },
           patch: { type: 'object', additionalProperties: true, description: '要更新的字段' },
         },
         async execute(args) {
-          // 兼容两种写法：patch:{...} 或直接把要改的字段平铺（合并工具后平铺更顺手）
-          const patch = (args.patch && typeof args.patch === 'object') ? { ...args.patch } : {}
-          for (const key of Object.keys(args)) {
-            if (key === 'id' || key === 'patch') continue
-            patch[key] = args[key]
-          }
-          return { ok: true, experiment: store.updateExperiment(String(args.id || ''), patch) }
+          return core.experimentUpdate(args)
         },
       })
 
@@ -431,13 +385,7 @@ export default {
           evidence: { type: 'array', items: { type: 'string' }, description: '证据文件相对路径，可省略' },
         },
         async execute(args) {
-          // 兼容两种写法：id 与 experimentId（其余工具用 experimentId，这里历史原因用 id）
-          const expId = String(args.id || args.experimentId || '')
-          if (!expId) return { ok: false, error: '需要 id（实验编号）' }
-          const result = store.recordStepResult(expId, args)
-          // 这一步做完了，把钉住的框和气泡收走
-          if (args.passed === true) { try { await overlayCall('/clear', {}) } catch { /* 桌宠不在就算了 */ } }
-          return { ok: true, experiment: result }
+          return core.experimentRecordResult(args)
         },
       })
 
@@ -450,12 +398,7 @@ export default {
           text: { type: 'string', description: '要记的内容' },
         },
         async execute(args) {
-          try {
-            const entry = store.addSoftwareNote(args.software, args.kind, args.text)
-            return { ok: true, software: entry.software, kind: entry.kind, total: entry.pitfalls.length + entry.where.length + entry.tips.length }
-          } catch (error) {
-            return { ok: false, error: String((error && error.message) || error) }
-          }
+          return core.noteAdd(args)
         },
       })
 
@@ -466,8 +409,7 @@ export default {
           software: { type: 'string', description: '软件名，可省略' },
         },
         async execute(args) {
-          const notes = store.listSoftwareNotes(args.software ? String(args.software) : '')
-          return { ok: true, notes: notes || {}, found: Boolean(notes) }
+          return core.noteList(args)
         },
       })
 
@@ -480,7 +422,7 @@ export default {
           query: { type: 'string', description: '按软件名、类别或别名搜索，可省略' },
         },
         async execute(args) {
-          return { ok: true, ...searchCatalog(args) }
+          return core.softwareCatalog(args)
         },
       })
 
@@ -492,7 +434,7 @@ export default {
           currentlyWorking: { type: 'boolean', description: '用户当前是否能正常完成该软件的实验；不知道就不要传 true' },
         },
         async execute(args) {
-          return adviseCompatibility({ software: String(args.software || 'ensp'), currentlyWorking: args.currentlyWorking === true })
+          return core.compatibilityAdvise(args)
         },
       })
 
@@ -504,11 +446,7 @@ export default {
           symptom: { type: 'string', description: '用户描述的报错原文或现象，例如“启动设备失败，错误代码 40”；越具体越准' },
         },
         async execute(args) {
-          return planRepair({
-            software: String(args.software || 'ensp'),
-            symptom: String(args.symptom || ''),
-            homeDir: store.homeDir,
-          })
+          return core.repairPlan(args)
         },
       })
 
@@ -525,16 +463,7 @@ export default {
           notes: { type: 'string', description: '补充说明，可省略' },
         },
         async execute(args) {
-          const result = recordRepair(store.homeDir, {
-            software: String(args.software || ''),
-            component: String(args.component || 'main'),
-            name: String(args.name || ''),
-            version: String(args.version || ''),
-            outcome: String(args.outcome || ''),
-            symptom: String(args.symptom || ''),
-            notes: String(args.notes || ''),
-          })
-          return { ...result, hint: '已写入本机经验库，不会上传到任何服务器。' }
+          return core.repairRecord(args)
         },
       })
 
@@ -546,25 +475,6 @@ export default {
         try { return await overlayCall('/pet', { action: 'park' }) } catch { return null }
       }
 
-      async function reportPlanFor(args = {}) {
-        const experimentId = String(args.experimentId || '').trim()
-        if (!experimentId) throw new Error('缺少实验编号')
-        const experiment = store.getExperiment(experimentId)
-        let profile = args.templateId ? loadTemplate(store.homeDir, String(args.templateId)) : null
-        if (args.templatePath) {
-          profile = importTemplate({ filePath: String(args.templatePath), homeDir: store.homeDir })
-        }
-        // 是否真的拿到了「老师给的模板」：档案里记过的路径、或本次显式传的都算
-        const hasTemplate = Boolean(profile) || Boolean(String(experiment.reportTemplate || '').trim())
-        if (!profile) profile = builtinProfile()
-        const environment = await probeEnvironment({ software: experiment.software })
-        const attempts = new RepairHistory(store.homeDir).list()
-        const plan = buildReportPlan({ experiment, profile, environment, history: { attempts }, overrides: args.sectionTexts })
-        plan.templateMissing = !hasTemplate
-        plan.requirementPath = String(experiment.requirementPath || '').trim()
-        return plan
-      }
-
       tool({
         name: 'lab_report_template',
         description: '读取用户提供的实验报告模板（.docx/.md/.txt），识别章节结构、必填项和表格列，保存为可复用的报告模板。传 path 导入；不传则列出已导入模板。',
@@ -574,19 +484,7 @@ export default {
           deleteId: { type: 'string', description: '要删除的模板 ID（移到 _trash，可恢复），可省略' },
         },
         async execute(args) {
-          if (args.deleteId) {
-            try {
-              const removed = deleteTemplate(store.homeDir, String(args.deleteId))
-              return { ok: true, deleted: removed, note: '模板已移入 _trash，可手动恢复' }
-            } catch (error) {
-              return { ok: false, error: error.message }
-            }
-          }
-          if (!args.path) {
-            return { ok: true, templates: listTemplates(store.homeDir), hint: '传 path 可导入新模板；传 deleteId 可删除模板。' }
-          }
-          const profile = importTemplate({ filePath: String(args.path), name: String(args.name || ''), homeDir: store.homeDir })
-          return { ok: true, template: profile, hint: '模板已保存到本机，可重复使用。' }
+          return core.reportTemplate(args)
         },
       })
 
@@ -600,9 +498,7 @@ export default {
           templatePath: { type: 'string', description: '临时指定模板文件路径，可省略' },
         },
         async execute(args) {
-          const plan = await reportPlanFor(args)
-          const { _sections, _evidence, _profile, ...visible } = plan
-          return visible
+          return core.reportPlan(args)
         },
       })
 
@@ -619,92 +515,7 @@ export default {
           useBuiltin: { type: 'boolean', description: '没有模板也坚持用内置通用模板生成（默认 false：先停下让用户补模板）' },
         },
         async execute(args) {
-          // 要求文件先落进档案，供 DSH 读取解析，再据此组织报告内容
-          if (String(args.requirementPath || '').trim()) {
-            try { store.updateExperiment(args.experimentId, { requirementPath: String(args.requirementPath).trim() }) } catch { /* 路径无效不影响生成 */ }
-          }
-          const plan = await reportPlanFor(args)
-          // 只有要求文件、没有模板时：直接生成会套用内置通用模板，和老师的格式对不上（实测返工一次）。
-          // 这里停下来要模板，而不是静默产出。
-          if (plan.templateMissing && args.useBuiltin !== true) {
-            return {
-              ok: false,
-              needTemplate: true,
-              experimentId: plan.experiment && plan.experiment.id,
-              requirementPath: plan.requirementPath || '',
-              error: '还没有报告模板：现在生成会套用内置通用模板，章节和老师要求对不上。',
-              askUser: '请在会话里问用户：老师发的实验报告模板（.docx）是哪个文件？拿到路径后先导入再生成。',
-              hint: '把老师的 .docx 模板路径传给 lab_report_template(path) 导入（只需一次），'
-                + '用户明确说没有模板时传 useBuiltin:true —— 会用学校实验报告那套封面（课程名称/专业年级/学期/学号/姓名），'
-                + '专业年级、学期这类填不了的留【待补】，不会瞎编。',
-              howTo: [
-                'lab_report_template(path:"D:\\我校模板\\实验报告模板.docx")  ← 导入模板',
-                'lab_report_generate(experimentId:"...", templateId:"...")        ← 再生成',
-              ],
-              mustExplain: '向用户说明：没有模板会与老师格式不一致，所以先暂停生成。',
-            }
-          }
-          const output = generateReport({
-            plan,
-            student: { name: String(args.studentName || ''), studentId: String(args.studentId || '') },
-          })
-          // 交接单：把这次报告需要的全部上下文固化下来，DSH 读它就能接手补写
-          let handoff = ''
-          try {
-            const exp = store.getExperiment(String(args.experimentId || ''))
-            let notes = null
-            try { notes = store.listSoftwareNotes(exp.software) } catch { notes = null }
-            const lines = [
-              `# 报告交接单：${exp.title}`,
-              '',
-              `- 实验编号：${exp.id}`,
-              `- 课程：${exp.course || '(未填)'}`,
-              `- 软件：${exp.software || '(未填)'}`,
-              `- 报告模板：${exp.reportTemplate || '(未填)'}`,
-              `- 实验要求：${exp.requirementPath || '(未填)'}`,
-              `- 数据文件：${exp.datasetPath || '(未填)'}`,
-              `- 已生成：${output.files && output.files.docx ? output.files.docx : ''}`,
-              '',
-              '## 需要 DSH 补写的内容',
-              `模板覆盖度 ${output.coverage ? output.coverage.percent : '?'}%，`
-                + `缺口 ${output.placeholderCount || 0} 处：`,
-              ...plan.sections
-                .filter((item) => item.coverage === 'partial' || item.coverage === 'pending')
-                .map((item) => `- ${item.title}`),
-              '',
-              '## 实验步骤与实测结果',
-              ...(exp.steps || []).map((step, index) =>
-                `- [${step.status}] ${index + 1}. ${step.title}`
-                + (step.where ? `｜位置：${step.where}` : '')
-                + (step.actual ? `｜实测：${step.actual}` : '')
-                + (step.passed === true ? '｜通过' : step.passed === false ? '｜未通过' : '')),
-              '',
-              '',
-              '## 该软件的已知经验',
-              ...(notes
-                ? [
-                    ...(notes.pitfalls || []).map((item) => `- [坑] ${item}`),
-                    ...(notes.where || []).map((item) => `- [位置] ${item}`),
-                    ...(notes.tips || []).map((item) => `- [技巧] ${item}`),
-                  ]
-                : ['（暂无，跑完后用 note_add 记几条）']),
-              '',
-              '## 交接方式',
-              'DSH 读取本文件后：用 experiment_update 把补写内容写进对应步骤的 actual/notes，',
-              '再调用 report_generate 重新生成终稿。',
-            ]
-            handoff = join(exp.workDir, 'reports', 'handoff.md')
-            writeFileSync(handoff, `${lines.join('\n')}\n`, 'utf8')
-          } catch (error) { handoff = '' }
-
-          return {
-            ...output,
-            template: plan.template,
-            drafts: plan.drafts,
-            handoff,
-            mustExplain: '逐条解释 pending 的原因（模板不匹配 / 没做到 / 需人工补数据），不要静默交付。',
-            pending: plan.sections.filter((item) => item.coverage === 'partial' || item.coverage === 'pending').map((item) => item.title),
-          }
+          return core.reportGenerate(args)
         },
       })
 
@@ -719,27 +530,7 @@ export default {
           sectionTexts: { type: 'object', additionalProperties: true, description: '要覆盖的章节正文，可省略（省略则沿用档案里的实测值）' },
         },
         async execute(args) {
-          const plan = await reportPlanFor(args)
-          const countFigures = (p) => (p.sections || []).reduce(
-            (sum, item) => sum + ((item.images && item.images.length) || 0), 0)
-          const before = countFigures(plan)
-          const output = generateReport({
-            plan,
-            student: { name: String(args.studentName || ''), studentId: String(args.studentId || '') },
-          })
-          const after = countFigures(plan)
-          return {
-            ok: true,
-            updated: true,
-            experimentId: plan.experiment && plan.experiment.id,
-            figuresBefore: before,
-            figuresNow: after,
-            added: Math.max(0, after - before),
-            files: output.files,
-            coverage: output.coverage,
-            pending: plan.sections.filter((item) => item.coverage === 'partial' || item.coverage === 'pending').map((item) => item.title),
-            note: '已按当前档案重新生成；新增截图会自动并入对应章节。',
-          }
+          return core.reportUpdate(args)
         },
       })
 
@@ -780,7 +571,9 @@ export default {
         parameters: {
           windowTitle: { type: 'string', description: '窗口标题包含的关键字，例如 eNSP' },
           process: { type: 'string', description: '进程名关键字，例如 eNSP，可与标题二选一' },
-          controlName: { type: 'string', description: '控件名称（UIA Name），可省略；省略时高亮整个窗口' },
+          controlName: { type: 'string', description: '控件名称（UIA Name）。传了它就会按「软件::窗口::控件」查经验库，第二次同软件实验不用再量坐标；省略时只高亮整窗' },
+          stepId: { type: 'string', description: '当前步骤 ID，可省略；自动录制会用它把指引序列钉到该步骤上' },
+          version: { type: 'string', description: '软件版本，可省略；版本变化时历史坐标会降级提示' },
           text: { type: 'string', description: '气泡讲解文字（大肥鱼口吻，说清这一步做什么、为什么）' },
           durationMs: { type: 'number', description: '展示时长毫秒，默认 8000' },
           x: { type: 'number', description: '相对窗口的目标 X（配合截图定位，可省略）' },
@@ -816,20 +609,80 @@ export default {
           payload.sticky = args.sticky === true
           if (!payload.title && !payload.process) return { ok: false, error: '需要 windowTitle 或 process 定位窗口' }
 
-          // 经验复用：没给坐标但有历史位置，直接用上次调好的
+          // ---- L1 控件级经验定位：把复用粒度从「软件::窗口」下沉到「软件::窗口::控件」 ----
+          const softwareName = inferSoftware(args, payload.title || payload.process)
+          const controlName = String(args.controlName || '').trim()
+          const expId = boundExperimentId(args)
+          // 写入键保持旧公式，避免「software 缺省推断」让老用户已有的窗口级 preset 读不到。
           const presetKey = `${String(args.software || payload.title || payload.process).toLowerCase()}::${String(payload.title || payload.process).toLowerCase()}`
+          const windowSize = safeKnowledgeCall(() => knowledge.getWindowSize(softwareName), null)
           let usedPreset = false
-          if (payload.x == null && payload.y == null) {
-            const saved = store.getGuidePreset(presetKey)
-            // 只认「整窗」基准的记录：0.14.3 之前的 preset 是客户区坐标，直接复用会偏一个标题栏高度
-            if (saved && saved.coord === 'window' && Number.isFinite(Number(saved.x)) && Number.isFinite(Number(saved.y))) {
-              payload.x = Number(saved.x)
-              payload.y = Number(saved.y)
-              if (saved.w) payload.w = Number(saved.w)
-              if (saved.h) payload.h = Number(saved.h)
-              if (saved.pad != null) payload.pad = Number(saved.pad)
-              usedPreset = true
+          let usedSource = 'none'
+          let matchedControl = null
+          let versionDrift = false
+          let sizeMismatch = false
+          let anchorHit = null
+          const cautions = []
+          const explicitCoords = payload.x != null && payload.y != null
+
+          if (!explicitCoords) {
+            // 1) 控件级 interface 优先
+            const match = controlName
+              ? safeKnowledgeCall(() => knowledge.findControl({
+                  software: softwareName, window: payload.title || '', controlName, windowSize,
+                }), null)
+              : null
+            if (match) {
+              usedSource = match.usedSource
+              matchedControl = match.control.name
+              versionDrift = match.versionDrift
+              sizeMismatch = match.sizeMismatch
+              if (!match.preferLive && match.rect) {
+                payload.x = Number(match.rect.x)
+                payload.y = Number(match.rect.y)
+                payload.w = Number(match.rect.w)
+                payload.h = Number(match.rect.h)
+              }
+              if (match.versionDrift) cautions.push('软件版本与上次记录不同，位置可能变了，请核对')
+              if (match.sizeMismatch) cautions.push('窗口尺寸变了，已改用实时定位，请核对')
+              if (match.sizeUnknown) cautions.push('还没登记窗口尺寸，先用 desktop_place 固定矩形更稳')
             }
+            // 2) 没命中控件 → 旧的窗口级 preset（保留兼容，但明确标记粒度不足）
+            if (usedSource === 'none') {
+              // 先读 rebuild 导进来的匿名窗口条目（兼容旧键格式），再退回原始 preset 文件
+              const legacy = safeKnowledgeCall(() => knowledge.findWindowPreset(
+                softwareName, payload.title || payload.process), null)
+              const saved = legacy || store.getGuidePreset(presetKey)
+              // 只认「整窗」基准的记录：0.14.3 之前的 preset 是客户区坐标，直接复用会偏一个标题栏高度
+              if (saved && saved.coord === 'window' && Number.isFinite(Number(saved.x)) && Number.isFinite(Number(saved.y))) {
+                payload.x = Number(saved.x)
+                payload.y = Number(saved.y)
+                if (saved.w) payload.w = Number(saved.w)
+                if (saved.h) payload.h = Number(saved.h)
+                if (saved.pad != null) payload.pad = Number(saved.pad)
+                usedPreset = true
+                usedSource = 'preset-window'
+              }
+            }
+            // 3) L3 视觉锚点兜底：只有存过锚点、且上面都没可靠命中时才做，匹配不到就降级
+            if (usedSource === 'none' || usedSource === 'preset-window') {
+              anchorHit = await anchorLocate(softwareName, controlName, payload.title, payload.process, expId)
+              if (anchorHit) {
+                payload.x = anchorHit.rect.x
+                payload.y = anchorHit.rect.y
+                payload.w = anchorHit.rect.w
+                payload.h = anchorHit.rect.h
+                usedSource = 'anchor'
+              }
+            }
+          }
+          // C# 的 /guide 一旦命中 UIA 控件，x/y 会变成相对「控件矩形」而非整窗；
+          // 所以用历史坐标/锚点坐标时必须清掉 control，否则整体偏移并被夹在控件内。
+          if (payload.x != null && payload.y != null) payload.control = ''
+          if (cautions.length) {
+            payload.text = payload.text
+              ? `${payload.text}\n（${cautions.join('；')}）`
+              : `主人，${cautions.join('；')}`
           }
 
           // 引导要桌宠过去指路：先解除停泊
@@ -837,6 +690,22 @@ export default {
           const startedAt = Date.now()
           const guided = await overlayCall('/guide', payload)
           const guideMs = Date.now() - startedAt
+
+          // 诚实校正：声称 interface-live 但桌宠实际没找到控件，就不能算实时命中；
+          // 退回该控件的历史坐标再指一次，并把 usedSource 改为 drift。
+          if (usedSource === 'interface-live' && guided && guided.located !== 'control') {
+            usedSource = 'interface-drift'
+            const iface = safeKnowledgeCall(() => knowledge.getInterface(softwareName), null)
+            const item = (iface?.controls || []).find((c) => c.name.toLowerCase() === controlName.toLowerCase())
+            if (item && item.rect) {
+              try {
+                await overlayCall('/guide', {
+                  ...payload, control: '',
+                  x: item.rect.x, y: item.rect.y, w: item.rect.w, h: item.rect.h,
+                })
+              } catch { /* 指不到就算了，气泡仍在 */ }
+            }
+          }
 
           let remembered = null
           if (args.remember !== false && payload.x != null && guided && guided.ok) {
@@ -846,12 +715,54 @@ export default {
                 x: Number(payload.x), y: Number(payload.y),
                 w: Number(payload.w || 0), h: Number(payload.h || 0),
                 pad: Number(payload.pad || 0),
-                software: String(args.software || ''),
+                software: softwareName,
                 title: String(payload.title || ''),
                 process: String(payload.process || ''),
                 located: String(guided.located || ''),
+                windowSize: windowSize || undefined,
               })
             } catch { remembered = null }
+            // 操作即记录：每次成功指引都把位置沉淀成控件级条目，不需要 agent 主动写 note_add。
+            // 这是自动采集，关掉总开关后不再写。
+            if (controlName && knowledge.autoCapture()) {
+              safeKnowledgeCall(() => knowledge.upsertControl(softwareName, {
+                controlName,
+                window: String(guided.window || payload.title || '主窗口'),
+                rect: { x: payload.x, y: payload.y, w: payload.w || 64, h: payload.h || 40 },
+                windowSize,
+                source: usedSource === 'interface-live' ? 'uia' : 'manual',
+                version: String(args.version || ''),
+              }), null)
+            }
+          }
+          // L2 自动录制 + L6 热区：只记「指了哪个控件、成没成」，不记任何可回放的点击
+          safeKnowledgeCall(() => {
+            knowledge.recordAction(expId, {
+              action: 'guide', software: softwareName,
+              window: String(guided?.window || payload.title || ''),
+              controlName,
+              rect: payload.x != null ? { x: payload.x, y: payload.y, w: payload.w || 0, h: payload.h || 0 } : null,
+              windowSize, source: usedSource, ok: Boolean(guided && guided.ok),
+              stepId: String(args.stepId || ''), ms: guideMs,
+            })
+            if (controlName) knowledge.noteGuideOutcome(softwareName, controlName, {
+              ok: Boolean(guided && guided.ok), source: usedSource,
+            })
+          }, null)
+
+          // 埋点：命中率指标全靠 usedSource，分不清控件级/窗口级就没法验收
+          const guideMeta = {
+            guideMs,
+            usedPreset,
+            usedSource,
+            matchedControl,
+            versionDrift,
+            sizeMismatch,
+            anchorScore: anchorHit ? anchorHit.score : 0,
+            software: softwareName,
+            note: usedSource === 'preset-window'
+              ? '只命中窗口级旧经验，同一窗口换按钮可能框错；下次带 controlName 可精确到控件。'
+              : usedSource === 'anchor' ? '由视觉锚点兜底定位，DPI/主题变化可能失效，请核对。' : '',
           }
 
           // 引导模式默认顺手截一张，便于事后核对；超过 1 秒就让学生自己截
@@ -878,8 +789,7 @@ export default {
             const late = shotMs > 1000
             return {
               ...guided,
-              guideMs,
-              usedPreset,
+              ...guideMeta,
               remembered: remembered ? remembered.uses : 0,
               shot: shot && shot.out ? shot.out : '',
               shotMs,
@@ -890,7 +800,7 @@ export default {
                 : '',
             }
           }
-          return { ...guided, guideMs }
+          return { ...guided, ...guideMeta }
         },
       })
 
@@ -939,19 +849,7 @@ export default {
           experimentId: { type: 'string', description: '实验编号' },
         },
         async execute(args) {
-          try {
-            const experiment = store.getExperiment(String(args.experimentId || ''))
-            const file = join(experiment.workDir, 'tutorial-claims.jsonl')
-            if (!existsSync(file)) return { ok: true, claims: [], note: '还没有回执' }
-            const claims = readFileSync(file, 'utf8')
-              .split(/\r?\n/)
-              .filter(Boolean)
-              .map((line) => { try { return JSON.parse(line) } catch { return null } })
-              .filter(Boolean)
-            return { ok: true, claims, total: claims.length, passedCount: claims.filter((item) => item.passed).length }
-          } catch (error) {
-            return { ok: false, error: String((error && error.message) || error) }
-          }
+          return core.tutorialClaims(args)
         },
       })
 
@@ -990,7 +888,7 @@ export default {
             }
           }
           await parkPetForWork(mode)
-          return overlayCall('/click', {
+          const result = await overlayCall('/click', {
             title: String(args.windowTitle || ''),
             process: String(args.process || ''),
             x: Number(args.x) || 0,
@@ -999,6 +897,17 @@ export default {
             confirm: args.confirm !== false,
             count: Number(args.count) || 1,
           })
+          // L2：只记「点过哪个位置、成没成」这个事实，绝不生成可回放的点击序列
+          safeKnowledgeCall(() => knowledge.recordAction(boundExperimentId(args), {
+            action: 'click',
+            software: inferSoftware(args, String(args.windowTitle || args.process || '')),
+            window: String(args.windowTitle || args.process || ''),
+            rect: { x: Number(args.x) || 0, y: Number(args.y) || 0, w: 1, h: 1 },
+            ok: Boolean(result && result.ok),
+            stepId: String(args.stepId || ''),
+            source: 'agent',
+          }), null)
+          return result
         },
       })
 
@@ -1013,12 +922,19 @@ export default {
         },
         async execute(args) {
           await parkPetForWork(store.currentMode())
+          const width = Number(args.width) || 1280
+          const height = Number(args.height) || 800
           const result = await overlayCall('/place', {
             title: String(args.windowTitle || ''),
             process: String(args.process || ''),
-            width: Number(args.width) || 1280,
-            height: Number(args.height) || 800,
+            width,
+            height,
           })
+          // 登记窗口尺寸：历史控件坐标只有尺寸一致时才能直接套用（方案自检 #12）
+          if (result && result.ok) {
+            safeKnowledgeCall(() => knowledge.setWindowSize(
+              inferSoftware(args, String(args.windowTitle || args.process || '')), { w: width, h: height }), null)
+          }
           return result
         },
       })
@@ -1040,12 +956,17 @@ export default {
           if (args.place !== false) {
             // 归位失败不阻断截图，只是位置不保证一致
             try {
-              await overlayCall('/place', {
+              const placed = await overlayCall('/place', {
                 title: String(args.windowTitle || ''),
                 process: String(args.process || ''),
                 width: Number(args.width) || 1280,
                 height: Number(args.height) || 800,
               })
+              if (placed && placed.ok) {
+                safeKnowledgeCall(() => knowledge.setWindowSize(
+                  inferSoftware(args, String(args.windowTitle || args.process || '')),
+                  { w: Number(args.width) || 1280, h: Number(args.height) || 800 }), null)
+              }
             } catch { /* 忽略 */ }
           }
           const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
@@ -1058,6 +979,12 @@ export default {
           if (result.ok) {
             result.next = '这是真实截图。用它核对结果后，调用 lab_experiment_record_result 写入该步骤的实测值与是否通过。'
           }
+          safeKnowledgeCall(() => knowledge.recordAction(experiment.id, {
+            action: 'shot', software: String(experiment.software || ''),
+            window: String(args.windowTitle || args.process || ''),
+            rect: null, ok: Boolean(result && result.ok),
+            stepId: String(args.stepId || ''), source: 'screenshot',
+          }), null)
           return result
         },
       })
@@ -1084,10 +1011,28 @@ export default {
             version: String(args.version || 'latest'),
             windowTitle: result.title,
             process: result.process,
+            windowRect: result.rect || null, // 窗口尺寸：历史坐标能否复用全靠它
             controls: result.controls,
             capturedAt: new Date().toISOString(),
           }
           const file = savePageMap(data)
+          // 双写：page-maps 退为导入源/版本快照，interface 是唯一查询入口。
+          // 只认 rel（相对整窗）；rect 是屏幕绝对坐标，导进去会整体框偏。
+          let imported = 0
+          const windowSize = result.rect ? { w: Number(result.rect.w) || 0, h: Number(result.rect.h) || 0 } : null
+          for (const item of (result.controls || [])) {
+            if (!item || !item.name || !item.rel) continue
+            const ok = safeKnowledgeCall(() => knowledge.upsertControl(data.software, {
+              controlName: String(item.name),
+              window: String(result.title || data.windowTitle || '主窗口'),
+              rect: item.rel,
+              windowSize,
+              source: 'uia',
+              version: data.version,
+              alias: item.type ? [String(item.type)] : [],
+            }), null)
+            if (ok) imported += 1
+          }
           return {
             ok: true,
             file,
@@ -1095,9 +1040,10 @@ export default {
             version: data.version,
             windowTitle: data.windowTitle,
             controlCount: data.controls.length,
+            imported,
             controls: data.controls.slice(0, 40).map((item) => `${item.type}「${item.name}」`),
             truncated: data.controls.length > 40,
-            note: '页面地图已保存。指引时用 lab_page_map_guide 按 controlName 定位。',
+            note: `页面地图已保存，并把 ${imported} 个控件写进 interface（唯一查询入口）。指引时用 desktop_guide(controlName) 或 page_map_guide 按控件名定位。`,
           }
         },
       })
@@ -1110,25 +1056,47 @@ export default {
           controlName: { type: 'string', description: '页面地图里的控件名称' },
           text: { type: 'string', description: '气泡讲解文字' },
           version: { type: 'string', description: '软件版本，可省略（默认最近一次采集）' },
+          windowTitle: { type: 'string', description: '窗口标题关键字，可省略（默认用控件条目里记的窗口）' },
+          process: { type: 'string', description: '进程名关键字，可省略' },
           durationMs: { type: 'number', description: '展示时长毫秒，默认 8000' },
         },
         async execute(args) {
-          const maps = listPageMaps(String(args.software || ''))
-          if (!maps.length) return { ok: false, error: `还没有 ${args.software} 的页面地图，先用 lab_page_map_capture 采集。` }
-          const map = JSON.parse(readFileSync(maps[0].file, 'utf8'))
+          const software = String(args.software || '')
           const controlName = String(args.controlName || '')
-          const known = (map.controls || []).some((item) => item.name === controlName)
-          const result = await overlayCall('/guide', {
-            title: map.windowTitle,
-            process: String(map.process || ''),
+          if (!controlName) return { ok: false, error: '需要 controlName' }
+          // 查询主路径改成 interface；没有旧 page-maps 但有控件条目时也能指路。
+          const match = safeKnowledgeCall(() => knowledge.findControl({
+            software, controlName, version: String(args.version || ''),
+            windowSize: knowledge.getWindowSize(software),
+          }), null)
+          const iface = safeKnowledgeCall(() => knowledge.getInterface(software), null)
+          const entry = (iface?.controls || []).find((c) => c.name.toLowerCase() === controlName.toLowerCase())
+          if (!match && !entry) {
+            const maps = listPageMaps(software)
+            if (!maps.length) return { ok: false, error: `还没有 ${software} 的控件经验，先用 lab_page_map_capture 采集，或 note_add 带 controlName 记一条。` }
+          }
+          const payload = {
+            title: String(args.windowTitle || entry?.window || (iface?.controls || [])[0]?.window || ''),
+            process: String(args.process || ''),
             control: controlName,
             text: String(args.text || ''),
             durationMs: Number(args.durationMs) || 8000,
-          })
-          if (result.ok && !known) {
-            result.note = '该控件名不在已保存的页面地图里，本次按 UIA 实时名称定位。'
           }
-          return result
+          let usedSource = match ? match.usedSource : 'interface-live'
+          if (match && match.rect && !match.preferLive) {
+            // 有历史坐标就别再传 control，否则 C# 会把坐标基准换成控件矩形（整体偏移）
+            Object.assign(payload, { control: '', x: match.rect.x, y: match.rect.y, w: match.rect.w, h: match.rect.h })
+          }
+          const result = await overlayCall('/guide', payload)
+          if (usedSource === 'interface-live' && result && result.located !== 'control') {
+            usedSource = 'none'
+            result.note = 'UIA 没能实时定位到该控件，已退回整窗；可用 knowledge_settings(rebuild) 重建经验。'
+          }
+          safeKnowledgeCall(() => knowledge.recordAction(boundExperimentId(args), {
+            action: 'guide', software, window: payload.title, controlName,
+            rect: match?.rect || null, source: usedSource, ok: Boolean(result && result.ok),
+          }), null)
+          return { ...result, usedSource }
         },
       })
 
@@ -1139,7 +1107,134 @@ export default {
           software: { type: 'string', description: '按软件名过滤，可省略' },
         },
         async execute(args) {
-          return { ok: true, maps: listPageMaps(args.software ? String(args.software) : '') }
+          return core.pageMapList(args.software ? String(args.software) : '')
+        },
+      })
+
+      tool({
+        name: 'lab_knowledge_query',
+        description: '按需深挖某软件的经验：控件级界面地图、坑、失败反例、热区。experiment_get 已经带过摘要，这里用于看更多条。',
+        parameters: {
+          software: { type: 'string', description: '软件名' },
+          stepId: { type: 'string', description: '当前步骤 ID，可省略；会把同一步的失败排前面' },
+          controls: { type: 'number', description: '返回控件数上限，默认 8，最多 50' },
+          pitfalls: { type: 'number', description: '坑的条数上限，默认 5' },
+          failures: { type: 'number', description: '失败反例条数上限，默认 3' },
+        },
+        async execute(args) {
+          return core.knowledgeQuery(args)
+        },
+      })
+
+      tool({
+        name: 'lab_knowledge_settings',
+        description: '经验自动采集的设置与维护：status 看采集了什么/存哪、on/off 开关自动采集、rebuild 从旧数据重建界面地图、rebuild-usage 重建热区。数据只在本机。',
+        parameters: {
+          action: { type: 'string', description: 'status / on / off / rebuild / rebuild-usage，默认 status' },
+          software: { type: 'string', description: 'rebuild 与 rebuild-usage 需要软件名' },
+        },
+        async execute(args) {
+          return core.knowledgeSettings(args)
+        },
+      })
+
+      tool({
+        name: 'lab_report_fragment_add',
+        description: '沉淀一条合格的报告句式骨架（按课程+软件+章节）。带 software 时只对该软件生效，同课不同软件不会串稿；省略则存为课程通用。硬约束：片段不得包含任何具体数值，数值必须从 record_result 重新填；生成时只作改写参考，不会自动写进正文。',
+        parameters: {
+          course: { type: 'string', description: '课程名，例如 计算机网络' },
+          section: { type: 'string', description: '章节名，例如 结果分析' },
+          pattern: { type: 'string', description: '句式骨架，不得含数字或测量值' },
+          software: { type: 'string', description: '软件名；不传时按当前实验档案的软件自动归属。要写课程通用骨架请显式传空字符串' },
+        },
+        async execute(args) {
+          return core.reportFragmentAdd(args)
+        },
+      })
+
+      tool({
+        name: 'lab_anchor_capture',
+        description: '为某个控件保存视觉锚点（只裁控件周边，不存整窗）。UIA 读不到时供 desktop_guide 兜底定位。可用已有截图，也可现场截一张。',
+        parameters: {
+          software: { type: 'string', description: '软件名，可省略（默认取当前实验档案）' },
+          controlName: { type: 'string', description: '控件名，与 desktop_guide 的 controlName 一致' },
+          rect: { type: 'object', additionalProperties: true, description: '控件相对整窗的 {x,y,w,h}' },
+          shot: { type: 'string', description: '已有截图路径，可省略（省略则现场截当前窗口）' },
+          windowTitle: { type: 'string', description: '窗口标题关键字，现场截图时需要' },
+          process: { type: 'string', description: '进程名关键字，可省略' },
+          window: { type: 'string', description: '控件所在窗口名，可省略' },
+          pad: { type: 'number', description: '外扩像素，默认 8' },
+        },
+        async execute(args) {
+          const software = inferSoftware(args)
+          const controlName = String(args.controlName || '').trim()
+          const raw = args.rect && typeof args.rect === 'object' ? args.rect : null
+          const rect = raw ? {
+            x: Number(raw.x) || 0, y: Number(raw.y) || 0,
+            w: Number(raw.w) || 0, h: Number(raw.h) || 0,
+          } : null
+          if (!software || !controlName) return { ok: false, error: '需要 software 和 controlName' }
+          if (!rect || rect.w <= 0 || rect.h <= 0) return { ok: false, error: '需要 rect{x,y,w,h}，且宽高为正' }
+          let pngBuffer = null
+          if (args.shot) {
+            const path = String(args.shot)
+            if (!existsSync(path)) return { ok: false, error: '截图文件不存在' }
+            try { pngBuffer = readFileSync(path) } catch { return { ok: false, error: '截图读不到' } }
+          } else {
+            const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
+            const out = join(os.tmpdir(), `dsh-lab-anchor-src-${stamp}.png`)
+            try {
+              const shot = await overlayCall('/screenshot', {
+                title: String(args.windowTitle || ''), process: String(args.process || ''), out,
+              })
+              if (!shot || !shot.ok || !shot.out) return { ok: false, error: '当前窗口截图失败，无法生成锚点' }
+              pngBuffer = readFileSync(shot.out)
+            } catch (error) {
+              return { ok: false, error: `截图失败：${String(error?.message || error)}` }
+            }
+          }
+          let cropped
+          try { cropped = anchorFromScreenshot(pngBuffer, rect, Number(args.pad) || 8) } catch (error) {
+            return { ok: false, error: `锚点裁切失败：${String(error?.message || error)}（仅支持 8-bit 非隔行 PNG）` }
+          }
+          const key = `${software}::${controlName}`
+          const file = safeKnowledgeCall(() => knowledge.saveAnchor(software, key, cropped.png), '')
+          if (!file) return { ok: false, error: '锚点保存失败（可能已关闭自动采集）' }
+          const entry = safeKnowledgeCall(() => knowledge.upsertControl(software, {
+            controlName, window: String(args.window || args.windowTitle || '主窗口'),
+            rect, windowSize: knowledge.getWindowSize(software), anchor: file, source: 'manual',
+          }), null)
+          return {
+            ok: true, file, control: entry ? entry.key : key,
+            width: cropped.width, height: cropped.height,
+            note: '只保存控件周边像素，不存整窗；DPI/主题/缩放变化可能失效，匹配不到会自动降级为整窗高亮。',
+          }
+        },
+      })
+
+      tool({
+        name: 'lab_anchor_locate',
+        description: '用已保存的视觉锚点在当前窗口截图里定位控件（只读，不画框）。返回相对整窗的 rect，可传给 desktop_guide 的 x/y。匹配不到会明确返回 matched:false，请改用整窗高亮。',
+        parameters: {
+          software: { type: 'string', description: '软件名，可省略（默认取当前实验档案）' },
+          controlName: { type: 'string', description: '控件名' },
+          windowTitle: { type: 'string', description: '窗口标题关键字' },
+          process: { type: 'string', description: '进程名关键字，可省略' },
+          experimentId: { type: 'string', description: '实验编号，可省略' },
+        },
+        async execute(args) {
+          const software = inferSoftware(args)
+          const controlName = String(args.controlName || '').trim()
+          if (!software || !controlName) return { ok: false, matched: false, error: '需要 software 和 controlName' }
+          const hit = await anchorLocate(software, controlName,
+            String(args.windowTitle || ''), String(args.process || ''), boundExperimentId(args))
+          if (!hit) {
+            return {
+              ok: false, matched: false,
+              error: '没有该控件的锚点，或模板匹配失败（DPI/主题/缩放可能变了）。已降级：请改用整窗高亮，或重新 anchor_capture。',
+            }
+          }
+          return { ok: true, matched: true, rect: hit.rect, score: hit.score, shot: hit.shot, software, controlName }
         },
       })
 
@@ -1150,12 +1245,7 @@ export default {
           software: { type: 'string', description: '要检查的软件名称或目录别名，逗号分隔；可省略' },
         },
         async execute(args) {
-          const probe = await probeEnvironment({ software: String(args.software || '') })
-          return {
-            ok: probe.ok,
-            probe,
-            next: '先根据发现项核对课程要求的版本组合；任何修复动作必须由用户明确确认。',
-          }
+          return core.environmentProbe(args)
         },
       })
 
@@ -1173,7 +1263,9 @@ export default {
    命令类步骤要让终端回显（追加 show tables / 加 -v / echo 分段），空提示符的截图不算证据。
 1. 报告只写真实记录：每步必须桌面点击/命令行执行后立即截图校验，通过才 experiment_record_result。
 2. 生成后必须把 pending（待补）逐条解释原因写给用户，不能只丢一个文件；能补先补，补不了才说清为什么。
-3. 同一软件开工前先 note_list 读经验；收工后 note_add 记下新踩的坑。
+3. 同一软件开工前直接看 experiment_get 返回的 knowledge（坑 / 控件位置 / 失败记录已自动带上，不用再单独 note_list）；
+   指路传 controlName，插件会按控件级经验定位，不要每次重新截图量坐标；
+   收工后 note_add 记新坑，带上 controlName + rect 会写成可执行控件条目，下次能直接命中。
 
 【模式契约】档案里的 mode 是硬约束（点击工具会真的拒绝）：
   guided    新手指引：绝不代点（desktop_click 直接拒绝，除非 force:true）。
@@ -1204,9 +1296,18 @@ desktop_status 桌宠进程状态
 desktop_pet(action, x?, y?, name?) 桌宠显示/隐藏/移动/改名
 desktop_place(windowTitle|process, width?, height?) 把实验软件窗口归位到固定矩形
 desktop_click(x, y, confirm?) 在窗口内点击；默认真点，传 confirm:false 只预演不点
-desktop_guide / desktop_screenshot 桌面指引与截图（截图前会自动归位）
+desktop_guide(controlName?, stepId?) 桌面指引：按控件级经验定位，返回 usedSource 说明命中来源
+desktop_screenshot 真实窗口截图（截图前会自动归位）
 desktop_tutorial / tutorial_claims 教学循环：学生点桌宠→跑到校验命令→通过就自动下一步
-page_map_capture / page_map_guide / page_map_list 页面地图`
+page_map_capture / page_map_guide / page_map_list 页面地图（旧数据导入源；查询以 interface 为准）
+knowledge_query(software?) / knowledge_settings(action?) 经验深挖与自动采集开关
+report_fragment_add(course, section, pattern, software?) 沉淀句式骨架，按软件细分，禁止带数值
+anchor_capture / anchor_locate 视觉锚点兜底：UIA 读不到时定位，匹配不到自动降级
+experiment_update(status:"archived") 归档并把 actions 明细压成聚合摘要（原明细保留）
+
+【经验闭环】每次 guide / click / shot / record_result 都会自动落一条本机记录；
+数据只在 <homeDir>/interface、actions、failures、usage、report-fragments，可用 knowledge_settings(off) 关闭采集。
+这些记录只用来「下次指得更准」，绝不代替学生点击，也绝不会写进报告正文冒充实测。`
       const actionNames = [...collected.keys()]
         .map((name) => name.replace(/^lab_assistant_/, '').replace(/^lab_/, ''))
 
@@ -1307,9 +1408,19 @@ page_map_capture / page_map_guide / page_map_list 页面地图`
           if (req.method === 'GET') return json(res, 200, { ok: true, settings: store.getSettings() })
           if (req.method === 'PUT' || req.method === 'PATCH') {
             const body = await readJsonBody(req)
+            // 空 dataDir 多半是面板还没拿到 /status（例如启动竞态），
+            // 直接落盘会把用户自定义的数据目录清空。真要恢复默认必须显式传 resetDataDir:true。
+            if (body && body.resetDataDir === true) body.dataDir = ''
+            if (body && typeof body.dataDir === 'string' && !body.dataDir.trim()
+              && store.getSettings().dataDir && body.resetDataDir !== true) {
+              delete body.dataDir
+            }
             const settings = store.updateSettings(body)
             // 改了数据目录就地重建 store，新实验立即落到新位置（旧数据不动）
-            if ('dataDir' in (body || {})) store = new ExperimentStore(baseHome)
+            if ('dataDir' in (body || {})) {
+              store = new ExperimentStore(baseHome)
+              knowledge.store = store // 知识库仍指向同一个 homeDir，但设置读取要走新实例
+            }
             return json(res, 200, { ok: true, settings: store.getSettings(), experimentsDir: store.experimentsDir })
           }
           return json(res, 405, { ok: false, error: '只支持 GET、PUT 或 PATCH' })
@@ -1326,9 +1437,11 @@ page_map_capture / page_map_guide / page_map_list 页面地图`
           }
           if (req.method === 'POST') {
             const body = await readJsonBody(req)
-            const experiment = store.createExperiment(body)
+            // 走 core 而不是 store：core 会把 templateId / reportTemplate 归一成互为别名，
+            // 面板只传 reportTemplate 也要在档案里落下 templateId，否则后续按 templateId 找模板会落空。
+            const created = core.experimentCreate(body)
             petMood('happy', '新实验档案建好啦，主人加油～')
-            return json(res, 201, { ok: true, experiment })
+            return json(res, 201, { ok: true, experiment: created.experiment, knowledge: created.knowledge })
           }
           return json(res, 405, { ok: false, error: '只支持 GET 或 POST' })
         }
@@ -1401,41 +1514,30 @@ page_map_capture / page_map_guide / page_map_list 页面地图`
           const body = await readJsonBody(req, 16 * 1024)
           return json(res, 200, recordRepair(store.homeDir, body))
         }
-        if (pathname === '/dsh-lab/api/report/templates' && req.method === 'GET') {
-          return json(res, 200, { ok: true, templates: listTemplates(store.homeDir) })
+        // 模板接口同时接受单数与复数两种写法。
+        // 桌面面板一直发的是复数 `/report/templates`（与 GET 列表、DELETE 删除保持一致），
+        // 而这里早期只注册了单数 POST，导致面板「导入模板」稳定 404、用户看到
+        // 「模板导入失败：…(404) 未找到」。保留单数是为了不破坏已发布的调用方，
+        // 也为了让已编译的旧面板不必重装就能恢复。
+        const isTemplatePath = pathname === '/dsh-lab/api/report/templates'
+          || pathname === '/dsh-lab/api/report/template'
+        if (isTemplatePath && req.method === 'GET') {
+          return json(res, 200, await core.reportTemplate({}))
         }
-        if (req.method === 'POST' && pathname === '/dsh-lab/api/report/template') {
+        if (isTemplatePath && req.method === 'POST') {
           const body = await readJsonBody(req, 16 * 1024)
-          if (!body.path) return json(res, 200, { ok: true, templates: listTemplates(store.homeDir) })
-          return json(res, 200, { ok: true, template: importTemplate({ filePath: String(body.path), name: String(body.name || ''), homeDir: store.homeDir }) })
+          return json(res, 200, await core.reportTemplate(body))
         }
         if (req.method === 'POST' && pathname === '/dsh-lab/api/report/plan') {
           const body = await readJsonBody(req, 16 * 1024)
-          return json(res, 200, await reportPlanFor(body))
+          return json(res, 200, await core.reportPlan(body))
         }
         if (req.method === 'POST' && pathname === '/dsh-lab/api/report/generate') {
           const body = await readJsonBody(req, 16 * 1024)
           try {
-            const plan = await reportPlanFor(body)
-            // 与 lab_report_generate 工具保持一致：没模板先拦下，别让面板/网页悄悄用内置模板
-            if (plan.templateMissing && body.useBuiltin !== true) {
-              return json(res, 200, {
-                ok: false, needTemplate: true, experimentId: plan.experiment && plan.experiment.id,
-                error: '还没有报告模板：会套用内置模板，和老师格式对不上。',
-                askUser: '先问用户要模板（.docx），或确认没有后传 useBuiltin:true。',
-              })
-            }
-            const output = generateReport({
-              plan,
-              student: { name: String(body.studentName || ''), studentId: String(body.studentId || '') },
-            })
-            petMood('happy', '报告生成好啦，记得核对【待补】的地方～')
-            return json(res, 200, {
-              ...output,
-              template: plan.template,
-              drafts: plan.drafts,
-              pending: plan.sections.filter((item) => item.coverage === 'partial' || item.coverage === 'pending').map((item) => item.title),
-            })
+            const result = await core.reportGenerate(body)
+            if (result.ok) petMood('happy', '报告生成好啦，记得核对【待补】的地方～')
+            return json(res, 200, result)
           } catch (error) {
             petMood('confused', '报告生成出错了，我看看哪里不对…')
             throw error

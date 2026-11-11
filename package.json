@@ -1,6 +1,6 @@
 {
   "name": "dsh-lab-assistant",
-  "version": "0.15.6",
+  "version": "0.15.26",
   "description": "实验助手：面向高校实验课程的 DSH 桌宠式流程、环境诊断与报告辅助插件",
   "keywords": [
     "dsh",
@@ -20,16 +20,35 @@
   "files": [
     "index.js",
     "lib",
+    "mcp",
     "assets",
     "coursepacks",
     "overlay",
+    "scripts/benchmark-knowledge.mjs",
     "docs/screenshots",
+    "docs/knowledge-data.md",
+    "docs/plan-remaining-verification.md",
     "!docs/promo/*.mp4",
+    "!overlay/*.exe",
+    "!overlay/*.pdb",
+    "!overlay/*.log",
     "cordis.patch.yml",
     "SECURITY.md",
     "CHANGELOG.md",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "scripts/check-catalog-verify.mjs",
+    "docs/ART_ASSETS.md",
+    "docs/COMPATIBILITY_ENGINE.md",
+    "docs/DESKTOP_PET_OVERLAY.md",
+    "docs/PET_ANIMATION_PROMPTS.md",
+    "docs/PET_DIALOGUE.md",
+    "docs/RELEASE.md",
+    "docs/REPORT_ENGINE.md",
+    "docs/SOFTWARE_CATALOG.md",
+    "docs/VERIFICATION_2026-10-28.md",
+    "docs/DIAGNOSIS_template-upload.md",
+    "docs/PANEL_CONTRACT.md"
   ],
   "engines": {
     "dsh": ">=0.2.0",
@@ -40,8 +59,10 @@
     "selfcheck": "node test/selfcheck.mjs",
     "ui:check": "node test/ui-check.mjs",
     "pack:check": "node scripts/pack-check.mjs",
-    "verify": "npm test && npm run selfcheck && npm run pack:check && npm run publish:check",
-    "publish:check": "node scripts/publish-check.mjs"
+    "bench:knowledge": "node scripts/benchmark-knowledge.mjs",
+    "verify": "npm test && npm run selfcheck && npm run catalog:check && npm run pack:check && npm run publish:check",
+    "publish:check": "node scripts/publish-check.mjs",
+    "catalog:check": "node scripts/check-catalog-verify.mjs"
   },
   "dsh": {
     "bundle": {
@@ -60,5 +81,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "lab-assistant-mcp": "mcp/server.mjs"
   }
 }

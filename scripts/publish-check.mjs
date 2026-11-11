@@ -117,7 +117,9 @@ function main() {
 
   if (arg && arg.endsWith('.tgz')) {
     const dir = mkdtempSync(join(tmpdir(), 'pubcheck-'))
-    execFileSync('tar', ['-xzf', resolve(arg), '-C', dir])
+    // Windows 上 GNU tar 会把 "D:\..." 里的冒号当成远程主机（报 Cannot connect to D:）。
+    // 走 stdin 喂文件内容，tar 就不需要解析带盘符的路径，跨平台一致。
+    execFileSync('tar', ['-xzf', '-', '-C', dir], { input: readFileSync(resolve(arg)) })
     base = join(dir, 'package')
     useFilesField = false
     cleanup = dir

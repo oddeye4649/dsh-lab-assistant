@@ -81,33 +81,38 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 - **实验档案**：新建独立实验目录，保存清单、截图目录、数据目录、报告目录和日志目录。
 - **历史实验**：按状态和关键词列出，可读取和更新，不再依赖单个聊天上下文。
 - **只读环境探测**：检查 eNSP、VirtualBox、WinPcap、Npcap、Wireshark、CPU 虚拟化和 Hyper-V 状态；也可以按名称检查目录中的其他软件。
-- **跨学科软件目录**：覆盖 14 个学科方向、67 项代表软件，记录优先级、授权方式、控制方式和适配状态。
+- **跨学科软件目录**：覆盖 14 个学科方向、140 项代表软件，记录优先级、授权方式、控制方式和适配状态。
 - **配置适配引擎**：根据环境指纹、已装版本、课程要求和“当前是否能正常运行”，区分保留现有环境、先诊断、或更换版本组合；推荐不等于安装授权。
 - **失败驱动找版本**：把报错原文匹配到已知失败特征，给出原因、检查项和按证据排序的候选版本；每试一个版本可记录“可用／失败”，下次自动降权或提前。
 - **实验报告引擎**：解析 .docx/.md 模板的章节、必填项、表格列和封面字段；按实验档案生成 Word 与 Markdown 初稿，截图自动按文件名顺序插入。
 - **不伪造结果**：报告只使用档案里真实存在的环境、步骤、截图和故障记录；实测值必须来自 `lab_experiment_record_result` 记录的真实执行结果；个人身份字段留空并列出清单。
 - **桌面伴随进程（P0）**：DSH 启动时自动拉起独立桌宠（透明置顶、可拖动、右键菜单），能在任意软件窗口/控件旁画高亮框、出气泡讲解，并真实截取目标窗口存入实验档案。**能点击，但有闸门**：`desktop_click` 默认真点，点击前校验该坐标确实属于目标进程（不属于直接拒绝），坐标越界拒绝；`guided` 模式下代码层面禁止代点。
-- **实验助手面板 = 资料库，不是生成器**：点桌面上的大肥鱼弹出面板，四块——**实验档案**（列表/刷新/打开目录）、**新建实验**（名称/课程/软件/模式/数据文件，数据文件用「浏览…」点选，避开文件对话框自动化不可靠的问题）、**模板库**（下拉切换已导入模板 + 导入…，按科目随时换）、**桌宠设置**（称呼/大小/显示/动画/走动/关闭/保存/存储路径）。**报告生成已移到对话里**：在任意会话说「按要求生成实验报告」，DSH 读模板与要求后调用本插件生成。
+- **实验助手面板 = 资料库，不是生成器**：点桌面上的大肥鱼弹出面板，四块——**实验档案**（列表/刷新/打开目录）、**新建实验**（名称/课程/软件/模式/数据文件，数据文件用「浏览…」点选，避开文件对话框自动化不可靠的问题）、**模板库**（下拉切换已导入模板 + 导入…，按科目随时换；导入失败会在状态栏说明具体原因，不会只显示「失败」）、**桌宠设置**（称呼/大小/显示/动画/走动/关闭/保存/存储路径）。**报告生成已移到对话里**：在任意会话说「按要求生成实验报告」，DSH 读模板与要求后调用本插件生成。
 - **桌宠会动、会说话、会自己溜达**：待机时有呼吸与轻浮动动效，还会随机做喝咖啡、敲键盘、看书、伸懒腰等 10 种小动作（有对应图片才播）；空闲时在屏幕工作区内随机走走停停，走动带小跳与身体摇摆，向左走自动镜像翻转；拖拽或打开面板时暂停。气泡台词全部来自本地预设，**不消耗模型 token**。生成报告成功会开心、失败会疑惑；引导时 0.5 秒内冲刺到目标旁再高亮。动画帧缺失时自动退化成程序内微动效，无需额外素材也能动。
 - **面板视觉**：柔和蓝白卡片式布局，与桌宠同风格；按钮和输入框按文字宽度排布，不再出现文字截断。
 - **页面地图**：把 UIA 能读到的控件采集成“软件名 + 版本”的地图，之后按控件名一键指引；控件位置每次实时获取，不写死坐标。
 - **证据分级**：本机经验库 > 同系统版本实测 > 他机实测 > 厂商文档 > 社区经验；别人电脑上跑通的版本不会被标成“保证可用”。
-- **单机最小实验验证**：Python 3.12.10、Weka 3.8.7、MySQL 8.0.46、ImageJ 1.54f 已完成 Windows 11 x64 最小实验；结果见 [docs/VERIFICATION_2026-10-28.md](docs/VERIFICATION_2026-10-28.md)。
+- **单机最小实验验证**：Python 3.12.10、Weka 3.8.7、MySQL 8.0.46、ImageJ 1.54f、R 4.6.2、Blender 4.5.0、LTspice 26.1.1、MiKTeX 25.12 已完成 Windows 11 x64 最小实验；SWMM 5.2.4 与 EPANET 2.3.5 的**命令行求解器**也已跑通官方示例且结果可复现。GUI 层只验了「定位窗口 + 高亮 + 截图」，课程级模型均未验证。结果见 [docs/VERIFICATION_2026-10-28.md](docs/VERIFICATION_2026-10-28.md)，后续批次与平台兼容测试见 [docs/plan-remaining-verification.md](docs/plan-remaining-verification.md)。
+- **干净系统首次编译（P4b，2026-11-11）**：在 VirtualBox 里装真正的 Windows 11 企业评估版（无 VS、无 .NET SDK、Defender 运行），实测首次编译。这次抓到并修掉一个会命中所有学生机器的问题——干净系统缺 `Reference Assemblies`，编译报 3 个 `CS0006`；修复后 exit=0、84,992 字节、二次编译哈希一致、桌宠进程与 `/status` 均正常。
+- **150% 缩放面板布局（P5，2026-11-11）**：实测面板被 WinForms 按字体/DPI 放大成 660×1036，位置却按 980 计算，**底部顶出工作区 48 px**。修复后同一台机器上整窗落回工作区，溢出为 0。
 - **保守安全策略**：检查不写入系统；提示只说明“需要核对”，不会自动卸载、改驱动或关闭虚拟化。
 - **可替换桌宠素材**：用户生成的 PNG 放入 `assets/pet/` 并更新 manifest 即可；缺图自动回退到占位图。
 
 - **三种模式是硬约束**：`guided`（新手指引，禁止代点，用黄色高亮框 + 桌宠指向 + 气泡讲解，学生自己操作）、`mixed`（默认，只读/可逆自动做，不可逆先问）、`automatic`（连续执行，失败或不可逆前才停）。模式记在实验档案里，`desktop_click` 会真的按模式拒绝。
-- **软件经验库**：`note_add` / `note_list` 按软件累积「坑 / 位置 / 技巧」；交接单会自动附上该软件已知经验，同类实验第二次不用重新试错。
+- **软件经验库（0.15.15 起前置）**：`note_add` / `note_list` 按软件累积「坑 / 位置 / 技巧」；`experiment_create` / `experiment_get` 的返回里**自动带 `knowledge` 摘要**（坑 / 控件位置 / 失败记录 / 热区，硬限流 5/8/3），不用再靠 agent 记得调 `note_list`。接管会话、跳过 workflow 也不会丢。交接单仍会附上完整经验。
 - **标准流程可自取**：`workflow` 动作返回八步流程与被挡时的替代方案，任何会话都能取。
 - **提交前不留空**：`report_generate` 支持 `sectionTexts`，DSH 可把「目的/环境/内容/分析/总结」亲笔写进对应章节；封面可填姓名/学号；截图去重且全篇连续编号。
 - **交接单**：每次生成报告同时写出 `reports/handoff.md`，列明缺口、该软件经验、每步实测，方便换会话接手。
 
-- **指引位置经验库**：`guide-presets.json` 按「软件::窗口」记住框的位置与大小，含使用次数；下次不给坐标直接复用。
+- **控件级位置经验库**：`interface/<软件>.json` 把页面地图的控件名、历史坐标、文本经验合成一张可执行的界面地图。`desktop_guide(controlName)` 按「软件::窗口::控件」定位，同一个窗口换按钮不会串到上一次的坐标；返回 `usedSource` 说明命中来源（实时 UIA / 同版本历史 / 跨版本需核对 / 窗口级旧 preset / 未命中）。旧的 `guide-presets.json` 与 `page-maps/` 只作导入源，不迁移不删除。
+- **视觉锚点兜底**：UIA 读不到的软件（eNSP / Qt 类）可用 `anchor_capture` 存控件周边小图，`anchor_locate` 做多尺度模板匹配；匹配不到一律降级为整窗高亮，不会假装命中。0.15.16 起打分改为归一化互相关（NCC）+ 多候选精搜，**已完成真实 GUI 端到端验证**（真实桌宠 + Notepad / Weka 窗口，两遍 15/15），修掉了真实界面重复纹理误框与纯色窗口不降级。
 - **框可放大、可钉住**：`pad` 向外扩（默认 36），`sticky` 钉住到该步完成；`desktop_clear` 手动清。
 - **统一整窗坐标**：截图、点击、指引三处都以整窗左上角为原点（`client:false` 为默认），拿截图量出来的坐标可以直接用；`client:true` 仍可显式要求客户区基准。旧版（客户区基准）存下的位置经验会被自动忽略并重新积累。
 - **越用越强的两条线**：
-  1. **报告线**：`note_add`/`note_list` 软件经验 + `experiment_clone` 复用步骤骨架与 `where` + `sectionTexts` 亲笔正文 + 模板库按科目切换；
-  2. **指引线**：`guide-presets.json` 记住每个窗口的框位置，第二次做同类实验直接复用，试错次数递减。
+  1. **报告线**：`experiment_get` 自动带经验 + `experiment_clone` 复用步骤骨架与已记录的指引序列 + `sectionTexts` 亲笔正文 + `report_fragment_add` 沉淀句式骨架（可按软件细分、禁止带数值，只作改写参考，不自动进正文）；
+  2. **指引线**：每次指引自动把位置沉淀成控件条目，`record_result(passed:false)` 自动记失败反例，热区按命中率排序。操作即记录，不靠 agent 自觉写经验。
+  3. **归档线**：`experiment_update(status:"archived")` 把操作明细压成聚合摘要（原明细保留、不删除），越到后面查询越轻。
+- **采集可关、说明可查**：`knowledge_settings(off/on/status)` 控制自动采集；采集了什么、存在哪、怎么删见 [docs/knowledge-data.md](docs/knowledge-data.md)。数据只在本机，不上传、不跨用户、不代点。
 
 ## 尚未实现
 
@@ -142,6 +147,13 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 
 首次安装或升级后，**完全退出 DSH（包括右下角托盘图标）再重新打开**。若你的 DSH 环境提供命令行 `dsh plugin add`，也支持 `dsh plugin add link:<目录>` 或 `dsh plugin add <tgz路径>`，具体子命令以当前 DSH 版本为准；本插件面向 DSH `>= 0.2.0`。
 
+### 安装排错
+
+- **`dsh plugin add` 报 `EPERM ... pnpm-store`**：pnpm 的全局 store 指向了当前账户无写权限的目录。在该 profile 目录新建 `.npmrc`，写入 `store-dir=D:/你的可写目录/pnpm-store`，再重试。
+- **桌宠没出现**：首次运行需要系统自带的 .NET Framework 编译器（`csc.exe`）。看 `<DSH_HOME>/lab-assistant/overlay/build.log`，若为 `compile-failed`，多半是杀软拦截或缺少 .NET Framework。
+- **桌面端没有面板/桌宠**：确认用的是 Windows 桌面端而不是 Web/Docker profile；Web profile 只提供对话工具。
+- **状态里素材显示缺失**：0.15.7 起按 `动作_序号.png` 统计，返回 `frames` 字段可看到每组实际帧数。
+
 ## 使用
 
 1. 安装并重启 DSH，桌面右下角出现大肥鱼（首次启动会自动编译伴随进程，约几秒）；
@@ -149,6 +161,28 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 3. 拖动可挪位置；要对某软件做引导，先对 DSH 说“给 XX 采集页面地图”，之后每一步它都会指位、高亮、讲解；
 4. 报告生成在 `experiments/<实验编号>/reports/` 下，面板里可一键打开所在文件夹；
 5. 对 DSH 直接说话也可以完成同样的事（工具名见下表）。
+
+## 在 WorkBuddy 里使用（MCP）
+
+插件同时提供一个**零依赖 MCP server**，让 WorkBuddy 这类支持 MCP 的宿主也能用同一套能力。
+
+```jsonc
+// ~/.workbuddy/mcp.json
+{
+  "mcpServers": {
+    "lab-assistant": {
+      "command": "<node 可执行文件绝对路径>",
+      "args": ["<插件目录>/mcp/server.mjs"],
+      "env": {}
+    }
+  }
+}
+```
+
+- **数据目录**：默认与 DSH 插件共用 `~/.dsh/lab-assistant`（同一个实验档案两边都能看到）；用 `LAB_ASSISTANT_HOME` 可单独指定。
+- **能力**：25 个工具——实验创建/读取/记录结果/克隆/删除、报告模板/大纲/生成/增量更新、经验查询与采集开关、兼容建议、修复计划/记录、环境只读探测、软件目录、标准工作流。
+- **边界**：桌宠、UIA 控件树、截图、点击指引这些依赖 DSH 桌面宿主的能力，在 MCP 下不可用；其余业务能力完整。
+- **配置后需要在宿主的连接器页面「信任」这个 server 才会生效。**
 
 ## DSH 工具
 
@@ -165,11 +199,15 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 | `lab_experiment_clone` | 复制上一份实验的步骤骨架，结果清空 |
 | `lab_experiment_list` | 按状态或关键词列出历史实验 |
 | `lab_experiment_get` | 读取完整实验档案 |
-| `lab_experiment_update` | 更新步骤、进度、模式或备注 |
+| `lab_experiment_update` | 更新步骤、进度、模式或备注；状态设为 `archived` 时压缩操作明细为摘要 |
 | `lab_experiment_record_result` | 记录步骤的真实实测值与是否通过，供报告填结果表 |
-| `lab_note_add` | 记一条软件经验（坑 / 位置 / 技巧） |
-| `lab_note_list` | 读某个软件的已有经验 |
-| `lab_software_catalog` | 查询 14 个学科、67 项代表软件的知识目录 |
+| `lab_note_add` | 记一条软件经验（坑 / 位置 / 技巧），带 `controlName`+`rect` 会升级成可执行控件条目 |
+| `lab_note_list` | 读某个软件的已有经验，附带控件条目 |
+| `lab_knowledge_query` | 按需深挖某软件的控件地图 / 坑 / 失败反例 / 热区 |
+| `lab_knowledge_settings` | 查看采集内容、开关自动采集、重建界面地图与热区 |
+| `lab_report_fragment_add` | 沉淀报告句式骨架（可按软件细分，禁止携带数值） |
+| `lab_anchor_capture` / `lab_anchor_locate` | 视觉锚点采集与兜底定位 |
+| `lab_software_catalog` | 查询 14 个学科、140 项代表软件的知识目录 |
 | `lab_compatibility_advise` | 根据电脑环境推荐保留、诊断或更换兼容组合 |
 | `lab_repair_plan` | 按报错原文定位失败原因，给出排序后的候选版本与操作顺序 |
 | `lab_repair_record` | 记录某版本在本机可用或失败，写入本机经验库 |
@@ -232,9 +270,9 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 
 生成的 Word 使用真实的标题样式、表格与内嵌图片，可直接继续编辑。模板封面字段（实验名称、姓名、学号、班级、指导教师）会按原顺序保留，能对上档案的自动填，其余留空。
 
-注意：只还原结构，不还原学校专属字体、页眉页脚、公式和自动编号；扫描版 PDF 模板不支持；文字章节是草稿，不是替你写结论。详见 [docs/REPORT_ENGINE.md](docs/REPORT_ENGINE.md)。
+注意：只还原结构，不还原学校专属字体、页眉页脚、公式和自动编号；扫描版 PDF 模板不支持；文字章节是草稿，不是替你写结论。详见 [docs/REPORT_ENGINE.md](docs/REPORT_ENGINE.md)。模板导入报 404 / 导入后没生效等问题的复现与排查见 [docs/DIAGNOSIS_template-upload.md](docs/DIAGNOSIS_template-upload.md)；面板每个按钮对应的接口与字段对照见 [docs/PANEL_CONTRACT.md](docs/PANEL_CONTRACT.md)。
 
-桌面桌宠 P0 已实现：首次运行会用系统自带 .NET Framework 编译器（csc.exe）一次性编译 `overlay/LabPet.cs` 并随 DSH 启动；细节与边界见 [docs/DESKTOP_PET_OVERLAY.md](docs/DESKTOP_PET_OVERLAY.md)。本插件只适配 DSH，不自带管理员提权通道；需要驱动级操作时由使用者自行以管理员运行 DSH。
+桌面桌宠 P0 已实现：首次运行会编译 `overlay/LabPet.cs`——装了 Visual Studio 的机器用它的 Roslyn，没装的退回系统自带的 .NET Framework 编译器（只支持 C# 5）；**两条路径都已实测能编出可运行的桌宠**（0.15.18，`compiler` 类型会写进 `build.log`）。细节与边界见 [docs/DESKTOP_PET_OVERLAY.md](docs/DESKTOP_PET_OVERLAY.md)。本插件只适配 DSH，不自带管理员提权通道；需要驱动级操作时由使用者自行以管理员运行 DSH。
 
 ## 本地数据
 
@@ -312,6 +350,7 @@ assets/icon.png          插件图标（512×512）
 ```bash
 npm test
 npm run selfcheck
+npm run catalog:check   # 校验软件目录的 verify 字段一致性
 npm run pack:check
 npm pack
 ```

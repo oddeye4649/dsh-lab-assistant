@@ -105,6 +105,26 @@ namespace LabPet
             Panel.Location = new Point(x, y);
             Panel.Show();
             Panel.ClientSize = new Size(wantW, wantH);
+
+            // P5 实测（150% 缩放）：WinForms 会按字体/DPI 再放大窗体，ClientSize 设 620×980
+            // 后实际外框是 660×1036，位置却还按 980 算，底部会顶出工作区 48px。
+            // 这里按"真实外框"回算：先保证整窗能放进工作区，再按真实高度重新贴边。
+            int frameW = Math.Max(0, Panel.Width - Panel.ClientSize.Width);
+            int frameH = Math.Max(0, Panel.Height - Panel.ClientSize.Height);
+            int availW = Math.Max(240, area.Right - area.Left - 16);
+            int availH = Math.Max(200, area.Bottom - area.Top - 16);
+            int realW = Math.Min(Panel.Width, availW);
+            int realH = Math.Min(Panel.Height, availH);
+            if (realW != Panel.Width || realH != Panel.Height)
+            {
+                Panel.ClientSize = new Size(Math.Max(200, realW - frameW), Math.Max(160, realH - frameH));
+            }
+            int fixedLeft = Math.Max(area.Left + 8, Math.Min(Panel.Left, area.Right - Panel.Width - 8));
+            int fixedTop = Math.Max(area.Top + 8, Math.Min(Panel.Top, area.Bottom - Panel.Height - 8));
+            if (fixedLeft != Panel.Left || fixedTop != Panel.Top)
+            {
+                Panel.Location = new Point(fixedLeft, fixedTop);
+            }
             Panel.RefreshList();
         }
 
@@ -172,6 +192,9 @@ namespace LabPet
     {
         public string name = "主人";
         public int petSize = 240;
+        // 报告封面用的姓名/学号：面板重启后不用重填
+        public string studentName = "";
+        public string studentId = "";
         public bool hidden = false;
         public bool chatter = true;
         public bool wander = true;
@@ -192,6 +215,8 @@ namespace LabPet
                     if (loaded != null)
                     {
                         if (loaded.ContainsKey("name")) name = Convert.ToString(loaded["name"]);
+                        if (loaded.ContainsKey("studentName")) studentName = Convert.ToString(loaded["studentName"]);
+                        if (loaded.ContainsKey("studentId")) studentId = Convert.ToString(loaded["studentId"]);
                         if (loaded.ContainsKey("petSize")) petSize = Convert.ToInt32(loaded["petSize"]);
                         if (loaded.ContainsKey("hidden")) hidden = Convert.ToBoolean(loaded["hidden"]);
                         if (loaded.ContainsKey("chatter")) chatter = Convert.ToBoolean(loaded["chatter"]);
@@ -212,7 +237,8 @@ namespace LabPet
             {
                 var data = new Dictionary<string, object>
                 {
-                    { "name", name }, { "petSize", petSize }, { "hidden", hidden }, { "chatter", chatter }, { "wander", wander }, { "x", x }, { "y", y }
+                    { "name", name }, { "petSize", petSize }, { "hidden", hidden }, { "chatter", chatter }, { "wander", wander }, { "x", x }, { "y", y },
+                    { "studentName", studentName }, { "studentId", studentId }
                 };
                 string temp = file + ".tmp";
                    File.WriteAllText(temp, Program.Json.Serialize(data));
@@ -1273,7 +1299,7 @@ namespace LabPet
             Controls.Add(cardList);
 
             // ── 新建实验 ──
-            cardNew = new CardPanel { Left = 24, Top = 270, Width = 468, Height = 222 };
+            cardNew = new CardPanel { Left = 24, Top = 270, Width = 468, Height = 254 };
             cardNew.Controls.Add(MakeLabel("新建实验", 16, 10, 240, 24, new Font("Microsoft YaHei UI", 10.5f, FontStyle.Bold), Ui.AccentDark));
             cardNew.Controls.Add(MakeLabel("名称", 16, 44, 40, 22, Font, Ui.Text));
             titleBox = MakeInput(60, 40, 392);
@@ -1298,16 +1324,26 @@ namespace LabPet
             btnBrowseDataset.Height = 28;
             btnBrowseDataset.Click += delegate { BrowseDataset(); };
             cardNew.Controls.Add(btnBrowseDataset);
+            // 姓名 / 学号：报告封面要用。之前这两个字段只有声明没有控件，
+            // 面板生成的报告永远拿不到姓名学号，只能手工补。
+            cardNew.Controls.Add(MakeLabel("姓名", 16, 172, 36, 22, Font, Ui.Text));
+            nameBox = MakeInput(56, 168, 88);
+            nameBox.Text = Program.Config.studentName;
+            cardNew.Controls.Add(nameBox);
+            cardNew.Controls.Add(MakeLabel("学号", 152, 172, 36, 22, Font, Ui.Text));
+            studentBox = MakeInput(192, 168, 132);
+            studentBox.Text = Program.Config.studentId;
+            cardNew.Controls.Add(studentBox);
             btnCreate = MakeButton("创建实验档案", 252, 102, 200, false);
             btnCreate.Height = 30;
             btnCreate.Click += delegate { CreateExperiment(); };
             cardNew.Controls.Add(btnCreate);
-            cardNew.Controls.Add(MakeLabel("模板 = 「模板库」里选中的那个；要求/数据可留空，之后在对话里补", 16, 190, 430, 18, new Font("Microsoft YaHei UI", 8f), Ui.Muted));
+            cardNew.Controls.Add(MakeLabel("模板 = 「模板库」里选中的那个；要求可留空，之后在对话里补", 16, 222, 430, 18, new Font("Microsoft YaHei UI", 8f), Ui.Muted));
             Controls.Add(cardNew);
 
             // ── 生成报告 ──
             // ── 模板库：只存模板，生成报告在对话里进行 ──
-            cardTpl = new CardPanel { Left = 24, Top = 432, Width = 468, Height = 156 };
+            cardTpl = new CardPanel { Left = 24, Top = 536, Width = 468, Height = 156 };
             cardTpl.Controls.Add(MakeLabel("模板库", 16, 8, 240, 26, new Font("Microsoft YaHei UI", 10.5f, FontStyle.Bold), Ui.AccentDark));
             cardTpl.Controls.Add(MakeLabel("报告在对话里生成；这里只管模板的导入与切换", 16, 36, 420, 18, new Font("Microsoft YaHei UI", 8f), Ui.Muted));
             cardTpl.Controls.Add(MakeLabel("模板", 16, 68, 40, 22, Font, Ui.Text));
@@ -1331,7 +1367,7 @@ namespace LabPet
             Controls.Add(cardTpl);
 
             // ── 桌宠设置 ──
-            cardPet = new CardPanel { Left = 24, Top = 638, Width = 468, Height = 196 };
+            cardPet = new CardPanel { Left = 24, Top = 704, Width = 468, Height = 196 };
             cardPet.Controls.Add(MakeLabel("桌宠设置", 16, 10, 240, 24, new Font("Microsoft YaHei UI", 10.5f, FontStyle.Bold), Ui.AccentDark));
             cardPet.Controls.Add(MakeLabel("称呼", 16, 42, 40, 22, Font, Ui.Text));
             petNameBox = MakeInput(60, 38, 110);
@@ -1527,6 +1563,10 @@ namespace LabPet
             if (list.SelectedItems.Count == 0) { SetStatus("请先在列表里选中一份实验。"); return; }
             var exp = list.SelectedItems[0].Tag as Dictionary<string, object>;
             if (exp == null) { SetStatus("请先在列表里选中一份实验。"); return; }
+            // 模板框为空（模板库空 / 没选）时不能硬失败：之前不传 useBuiltin，
+            // 后端按「没有模板就停下」返回 ok:false，用户点多少次都是「生成失败」。
+            // 这里明确用内置通用封面，并在状态栏说清楚，避免误以为是坏了。
+            bool usedBuiltin = string.IsNullOrEmpty(templateBox.Text.Trim());
             var json = Program.Json.Serialize(new Dictionary<string, object>
             {
                 { "experimentId", ToStr(exp, "id") },
@@ -1535,6 +1575,7 @@ namespace LabPet
                 { "templateId", templateBox.Text.Trim() },
                 { "templatePath", "" },
                 { "requirementPath", requirementBox == null ? "" : requirementBox.Text.Trim() },
+                { "useBuiltin", usedBuiltin },
             });
             SetStatus("正在生成报告…");
             var data = Obj(Api("POST", "/report/generate", json));
@@ -1549,7 +1590,13 @@ namespace LabPet
             lastDocx = docx;
             int placeholders = 0;
             if (data.ContainsKey("placeholderCount")) placeholders = Convert.ToInt32(data["placeholderCount"]);
-            SetStatus("报告已生成：" + docx + "\n还有 " + placeholders + " 处【待补】需要本人填写真实数据。");
+            // 记住姓名/学号，下次生成或重开面板不用重填
+            Program.Config.studentName = nameBox == null ? "" : nameBox.Text.Trim();
+            Program.Config.studentId = studentBox == null ? "" : studentBox.Text.Trim();
+            Program.Config.Save();
+            SetStatus("报告已生成：" + docx
+                + (usedBuiltin ? "\n（模板库为空，已用内置通用封面；要和老师格式一致请先导入模板）" : "")
+                + "\n还有 " + placeholders + " 处【待补】需要本人填写真实数据。");
         }
 
         private void SavePet()
@@ -1711,7 +1758,9 @@ namespace LabPet
             string dir = ToStr(exp, "workDir");
             if (reportFolder) dir = Path.Combine(dir, "reports");
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            Process.Start("explorer.exe", dir);
+            // 路径可能含空格（自定义数据目录、OneDrive 中文目录），必须加引号，
+            // 否则 explorer 会把空格当分隔符，打开错误位置。
+            Process.Start("explorer.exe", "\"" + dir + "\"");
         }
 
         // 删除选中的实验档案：二次确认 → 移到 _trash（可恢复）
@@ -1808,6 +1857,27 @@ namespace LabPet
                 using (var response = request.GetResponse())
                 using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
                     return reader.ReadToEnd();
+            }
+            catch (WebException error)
+            {
+                // 4xx/5xx 时 GetResponse() 会抛异常，但响应体里带着后端的具体原因
+                // （例如「找不到该模板」「请求体过大」）。原来直接吞掉，面板只显示
+                // 「远程服务器返回错误: (500)」，等于什么都看不到。
+                try
+                {
+                    if (error.Response != null)
+                    {
+                        using (var stream = error.Response.GetResponseStream())
+                        using (var reader = new StreamReader(stream, Encoding.UTF8))
+                        {
+                            string body = reader.ReadToEnd();
+                            if (!string.IsNullOrEmpty(body) && body.TrimStart().StartsWith("{"))
+                                return body;
+                        }
+                    }
+                }
+                catch { }
+                return Program.Json.Serialize(new Dictionary<string, object> { { "ok", false }, { "error", error.Message } });
             }
             catch (Exception error)
             {

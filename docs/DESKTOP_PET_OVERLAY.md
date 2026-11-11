@@ -163,7 +163,7 @@ eNSP 是 Qt 应用，UIA 暴露程度有限；多数控件需要 B/C 级方案�
 已落地：
 
 - `overlay/LabPet.cs` + `app.manifest`：WinForms 伴随进程，含透明置顶桌宠（拖动、点击开设置：称呼/大小/隐藏/退出）、全屏点击穿透高亮层、不抢焦点气泡、UIA 窗口/控件定位、PrintWindow 截图、本机 HTTP 控制（127.0.0.1 + token）。
-- `lib/overlay.mjs`：首次运行用系统自带编译器一次性编译到 `$DSH_HOME/lab-assistant/overlay/`，随 DSH 启动、插件卸载即退出；编译失败会降级并在 `lab_desktop_status` 里说明原因。
+- `lib/overlay.mjs`：首次运行编译到 `$DSH_HOME/lab-assistant/overlay/`，随 DSH 启动、插件卸载即退出。编译走两条路：装了 Visual Studio 用它的 Roslyn，没装退回系统自带的 .NET Framework 编译器（C# 5）；`DSH_LAB_FORCE_FRAMEWORK_CSC=1` 可强制走后者（排错/复现用户环境用）。失败会降级并在 `lab_desktop_status` 里说明原因。
 - 插件工具：`lab_desktop_status / pet / guide / screenshot`、`lab_page_map_capture / guide / list`。
 
 边界（如实）：
@@ -171,7 +171,7 @@ eNSP 是 Qt 应用，UIA 暴露程度有限；多数控件需要 B/C 级方案�
 - 定位靠 UIA 控件名 + 窗口标题/进程名；Qt 类程序（如 eNSP）控件暴露有限，找不到控件时回退为高亮整个窗口。
 - 不代替用户点击；只读定位 + 截图。
 - 截图依赖 PrintWindow，GPU/DRM 窗口可能黑屏，届时换前台截图（后续增强）。
-- 开发沙箱禁止运行编译器，编译/运行链路需在用户机器首次运行时验证；若失败，`lab_desktop_status` 会给出原因和 `build.log` 路径。
+- 编译/运行链路已在真机验证两条编译器路径（0.15.18 P4a：旧编译器 991 ms、Roslyn 1379 ms，均能启动）；仍未覆盖杀软拦截、缺 .NET Framework、只读目录首次编译，失败时 `lab_desktop_status` 会给出原因和 `build.log` 路径。
 
 ## 0.6.0：实验助手面板上桌 + 网页桌宠下线
 

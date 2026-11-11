@@ -1,7 +1,7 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-10-28",
-  "disclaimer": "这是跨学科软件的初始知识目录，不是‘已支持’清单。eNSP 已完成只读检测；Python 3.12.10、Weka 3.8.7、MySQL 8.0.46、ImageJ 1.54f 已在单台 Windows 11 x64 完成最小实验；其余条目只完成归类，尚未逐台安装、运行或验证课程兼容性。每项必须经过实际启动测试后才能提升支持状态。",
+  "schemaVersion": 2,
+  "updatedAt": "2026-11-10",
+  "disclaimer": "这是跨学科软件的初始知识目录，不是‘已支持’清单。eNSP 已完成只读检测；Python 3.12.10、Weka 3.8.7、MySQL 8.0.46、ImageJ 1.54f、SWMM 5.2.4 与 EPANET 2.3.5 已在单台 Windows 11 x64 完成最小实验（SWMM/EPANET 只验了命令行求解器）；其余条目只完成归类，尚未逐台安装、运行或验证课程兼容性。每项必须经过实际启动测试后才能提升支持状态。",
   "priorityLegend": {
     "P0": "优先验证：免费或容易获取、课程常见、通常能安全做只读检测",
     "P1": "第二阶段：校园授权或商业软件，课程常见但安装与界面适配成本较高",
@@ -12,173 +12,3574 @@
     "verified-run": "已在 Windows 11 x64 测试机完成一次真实最小实验；不代表所有课程、版本和电脑都可用",
     "catalog-only": "仅完成资料归类，尚未实现检测适配"
   },
+  "verifyLegend": {
+    "cmd": "可复现的最小校验命令；{inp} {rpt} {out} {script} 为占位符，由调用方按实际路径替换",
+    "expect": "必须出现在标准输出里的字符串，任意一条缺失即判为失败",
+    "reportContains": "必须出现在报告文件里的字符串（版本号等）",
+    "reportExpect": "报告里必须存在的行首关键字",
+    "artifactExpect": "必须由命令生成的产物文件名",
+    "timeoutMs": "超时时间；超时即判失败",
+    "deterministic": "同一输入多次运行是否给出完全相同的结果；true 才能用于自动判分",
+    "note": "断言的具体期望值与已知陷阱"
+  },
   "disciplines": [
     {
       "id": "computer",
       "name": "计算机 · 软件工程 · 人工智能",
-      "courses": ["程序设计", "数据结构", "数据库", "操作系统", "软件工程", "机器学习"],
-      "softwareIds": ["python", "vscode", "git", "jupyter", "mysql", "docker", "r-rstudio", "weka"],
+      "courses": [
+        "程序设计",
+        "数据结构",
+        "数据库",
+        "操作系统",
+        "软件工程",
+        "机器学习"
+      ],
+      "softwareIds": [
+        "python",
+        "vscode",
+        "git",
+        "jupyter",
+        "mysql",
+        "docker",
+        "r-rstudio",
+        "weka",
+        "pycharm",
+        "intellij-idea",
+        "visual-studio",
+        "dbeaver",
+        "virtualbox",
+        "texlive"
+      ],
       "notes": "这一组最容易先做命令行、文件、端口和最小运行验证，应作为通用能力底座。"
     },
     {
       "id": "networking",
       "name": "网络工程 · 通信工程 · 网络安全",
-      "courses": ["计算机网络", "网络安全", "通信原理", "路由交换", "渗透测试"],
-      "softwareIds": ["ensp", "packet-tracer", "wireshark", "kali-linux", "gns3"],
+      "courses": [
+        "计算机网络",
+        "网络安全",
+        "通信原理",
+        "路由交换",
+        "渗透测试"
+      ],
+      "softwareIds": [
+        "ensp",
+        "packet-tracer",
+        "wireshark",
+        "kali-linux",
+        "gns3",
+        "h3c-hcl",
+        "virtualbox"
+      ],
       "notes": "eNSP 是首个已验证案例；商业化模拟器和虚拟机依赖授权镜像，不能分发镜像文件。"
     },
     {
       "id": "electronics",
       "name": "电子 · 电气 · 自动化 · 嵌入式",
-      "courses": ["电路分析", "模拟电子", "数字电子", "单片机", "EDA", "信号与系统"],
-      "softwareIds": ["multisim", "proteus", "keil-mdk", "quartus-prime", "vivado", "labview", "logisim"],
+      "courses": [
+        "电路分析",
+        "模拟电子",
+        "数字电子",
+        "单片机",
+        "EDA",
+        "信号与系统"
+      ],
+      "softwareIds": [
+        "multisim",
+        "proteus",
+        "keil-mdk",
+        "quartus-prime",
+        "vivado",
+        "labview",
+        "logisim",
+        "altium-designer",
+        "ltspice",
+        "lceda",
+        "modelsim"
+      ],
       "notes": "GUI 仿真软件版本和库文件差异大，先做安装检测、版本采集和示例工程启动测试。"
     },
     {
       "id": "mechanical",
       "name": "机械 · 车辆 · 航空",
-      "courses": ["机械设计", "工程力学", "有限元", "流体力学", "车辆工程"],
-      "softwareIds": ["solidworks", "autocad", "ansys", "abaqus"],
+      "courses": [
+        "机械设计",
+        "工程力学",
+        "有限元",
+        "流体力学",
+        "车辆工程"
+      ],
+      "softwareIds": [
+        "solidworks",
+        "autocad",
+        "ansys",
+        "abaqus",
+        "catia",
+        "ug-nx",
+        "creo",
+        "fusion-360",
+        "comsol"
+      ],
       "notes": "授权成本高、安装体积大，需优先识别已有校园授权和许可证服务器。"
     },
     {
       "id": "civil-architecture",
       "name": "土木 · 建筑 · 城乡规划 · 测绘",
-      "courses": ["建筑制图", "BIM", "结构力学", "城乡规划", "地理信息系统"],
-      "softwareIds": ["revit", "sketchup", "staad-pro", "arcgis-pro", "qgis", "autocad"],
+      "courses": [
+        "建筑制图",
+        "BIM",
+        "结构力学",
+        "城乡规划",
+        "地理信息系统"
+      ],
+      "softwareIds": [
+        "revit",
+        "sketchup",
+        "staad-pro",
+        "arcgis-pro",
+        "qgis",
+        "autocad",
+        "pkpm",
+        "yjk",
+        "glodon",
+        "sap2000",
+        "etabs",
+        "midas",
+        "plaxis",
+        "lumion",
+        "rhino-grasshopper",
+        "civil-3d",
+        "swmm",
+        "epanet",
+        "south-cass",
+        "3ds-max"
+      ],
       "notes": "BIM 与 GIS 软件对显卡、许可证和文件版本敏感，课程包应强绑定模板版本。"
     },
     {
       "id": "chemistry-materials",
       "name": "化学 · 化工 · 材料",
-      "courses": ["有机化学", "分析化学", "物理化学", "化工原理", "计算材料"],
-      "softwareIds": ["chemdraw", "origin", "gaussian", "vesta", "aspen-plus", "python"],
+      "courses": [
+        "有机化学",
+        "分析化学",
+        "物理化学",
+        "化工原理",
+        "计算材料"
+      ],
+      "softwareIds": [
+        "chemdraw",
+        "origin",
+        "gaussian",
+        "vesta",
+        "aspen-plus",
+        "python",
+        "materials-studio",
+        "mdi-jade",
+        "avogadro",
+        "vasp",
+        "lammps",
+        "ovito",
+        "aspen-hysys",
+        "comsol"
+      ],
       "notes": "计算化学与过程模拟往往依赖服务器、队列和许可证，桌面端只应负责准备与结果整理。"
     },
     {
       "id": "biology-agriculture",
       "name": "生物 · 食品 · 农林 · 生态",
-      "courses": ["生物化学", "分子生物学", "微生物", "生态学", "食品分析", "生物信息"],
-      "softwareIds": ["imagej", "pymol", "mega", "qiime2", "r-rstudio", "python"],
+      "courses": [
+        "生物化学",
+        "分子生物学",
+        "微生物",
+        "生态学",
+        "食品分析",
+        "生物信息"
+      ],
+      "softwareIds": [
+        "imagej",
+        "pymol",
+        "mega",
+        "qiime2",
+        "r-rstudio",
+        "python",
+        "graphpad-prism",
+        "snapgene",
+        "dps",
+        "sas",
+        "zotero"
+      ],
       "notes": "序列数据库和分析流程版本变化快，必须记录数据库版本与参数，不能只记软件名。"
     },
     {
       "id": "medicine-health",
       "name": "医学 · 护理 · 药学 · 公共卫生",
-      "courses": ["系统解剖", "医学影像", "生理学", "护理实训", "流行病学", "药学"],
-      "softwareIds": ["3d-slicer", "osirix-horos", "fsl", "imagej", "spss", "r-rstudio"],
+      "courses": [
+        "系统解剖",
+        "医学影像",
+        "生理学",
+        "护理实训",
+        "流行病学",
+        "药学"
+      ],
+      "softwareIds": [
+        "3d-slicer",
+        "osirix-horos",
+        "fsl",
+        "imagej",
+        "spss",
+        "r-rstudio",
+        "graphpad-prism",
+        "sas",
+        "radiant-dicom",
+        "complete-anatomy",
+        "spm",
+        "noteexpress",
+        "cajviewer",
+        "zotero"
+      ],
       "notes": "医学数据隐私要求最高；真实病例影像不得默认上传，匿名化和本地保存应成为默认。"
     },
     {
       "id": "economics-management",
       "name": "经济 · 金融 · 会计 · 管理",
-      "courses": ["计量经济学", "统计学", "金融分析", "会计信息化", "ERP", "运营管理"],
-      "softwareIds": ["spss", "stata", "eviews", "r-rstudio", "anylogic", "yonyou-u8", "python"],
+      "courses": [
+        "计量经济学",
+        "统计学",
+        "金融分析",
+        "会计信息化",
+        "ERP",
+        "运营管理"
+      ],
+      "softwareIds": [
+        "spss",
+        "stata",
+        "eviews",
+        "r-rstudio",
+        "anylogic",
+        "yonyou-u8",
+        "python",
+        "sas",
+        "power-bi",
+        "tableau",
+        "wind",
+        "ths-ifind",
+        "choice",
+        "uipath",
+        "gams"
+      ],
       "notes": "很多课程依赖于院校购买的实验平台和沙盘，不能假设学生个人电脑拥有授权。"
     },
     {
       "id": "psychology-social",
       "name": "心理学 · 社会学 · 教育学",
-      "courses": ["实验心理学", "认知心理学", "社会调查", "质性研究", "教育测量"],
-      "softwareIds": ["eprime", "psychopy", "nvivo", "atlasti", "spss", "r-rstudio"],
+      "courses": [
+        "实验心理学",
+        "认知心理学",
+        "社会调查",
+        "质性研究",
+        "教育测量"
+      ],
+      "softwareIds": [
+        "eprime",
+        "psychopy",
+        "nvivo",
+        "atlasti",
+        "spss",
+        "r-rstudio",
+        "mplus",
+        "amos",
+        "jasp",
+        "opensesame",
+        "maxqda",
+        "kinovea"
+      ],
       "notes": "刺激呈现对时间精度和硬件敏感，自动操作必须避免打断实验窗口或改变计时。"
     },
     {
       "id": "geoscience-environment",
       "name": "地理 · 环境 · 地质 · 气象",
-      "courses": ["水文学", "地下水", "环境建模", "气象学", "遥感", "生态规划"],
-      "softwareIds": ["arcgis-pro", "qgis", "swat", "hec-ras", "modflow", "wrf", "python"],
+      "courses": [
+        "水文学",
+        "地下水",
+        "环境建模",
+        "气象学",
+        "遥感",
+        "生态规划"
+      ],
+      "softwareIds": [
+        "arcgis-pro",
+        "qgis",
+        "swat",
+        "hec-ras",
+        "modflow",
+        "wrf",
+        "python",
+        "swmm",
+        "epanet",
+        "envi",
+        "south-cass",
+        "pix4d",
+        "aermod"
+      ],
       "notes": "模型软件版本、数据坐标系和输入格式强耦合，结果必须保留参数和原始数据。"
     },
     {
       "id": "math-physics",
       "name": "数学 · 统计 · 物理",
-      "courses": ["数值计算", "数学建模", "概率统计", "计算物理", "核物理实验"],
-      "softwareIds": ["matlab", "mathematica", "latex-overleaf", "geant4", "python", "r-rstudio"],
+      "courses": [
+        "数值计算",
+        "数学建模",
+        "概率统计",
+        "计算物理",
+        "核物理实验"
+      ],
+      "softwareIds": [
+        "matlab",
+        "mathematica",
+        "latex-overleaf",
+        "geant4",
+        "python",
+        "r-rstudio",
+        "lammps",
+        "ovito",
+        "sas",
+        "gams",
+        "jasp",
+        "noteexpress",
+        "cajviewer",
+        "zotero",
+        "comsol",
+        "maple",
+        "texlive"
+      ],
       "notes": "优先用脚本和可复现环境；GUI 工具只用于展示或结果确认。"
     },
     {
       "id": "media-design",
       "name": "新闻传播 · 数字媒体 · 艺术设计",
-      "courses": ["摄影摄像", "影视后期", "动画", "游戏设计", "交互设计"],
-      "softwareIds": ["photoshop", "premiere-pro", "blender", "unity", "figma"],
+      "courses": [
+        "摄影摄像",
+        "影视后期",
+        "动画",
+        "游戏设计",
+        "交互设计"
+      ],
+      "softwareIds": [
+        "photoshop",
+        "premiere-pro",
+        "blender",
+        "unity",
+        "figma",
+        "rhino-grasshopper",
+        "illustrator",
+        "indesign",
+        "after-effects",
+        "cinema-4d",
+        "maya",
+        "3ds-max",
+        "houdini",
+        "nuke",
+        "unreal-engine",
+        "audition"
+      ],
       "notes": "工程文件和素材体积大，自动保存截图之外还要管理版本、缓存和代理文件。"
     },
     {
       "id": "humanities-law",
       "name": "语言 · 人文 · 法学",
-      "courses": ["语料库语言学", "语音学", "法律检索", "模拟法庭", "定性研究"],
-      "softwareIds": ["antconc", "praat", "pkulaw", "westlaw", "nvivo"],
+      "courses": [
+        "语料库语言学",
+        "语音学",
+        "法律检索",
+        "模拟法庭",
+        "定性研究"
+      ],
+      "softwareIds": [
+        "antconc",
+        "praat",
+        "pkulaw",
+        "westlaw",
+        "nvivo",
+        "maxqda",
+        "noteexpress",
+        "cajviewer",
+        "zotero",
+        "texlive"
+      ],
       "notes": "多为网页数据库或轻量工具，重点在检索记录、引用来源和隐私，而非安装大型软件。"
     }
   ],
   "software": [
-    {"id":"python","name":"Python","aliases":["python","anaconda","miniconda"],"disciplines":["computer","chemistry-materials","biology-agriculture","economics-management","geoscience-environment","math-physics"],"category":"编程与科学计算","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"cli/script","support":"verified-run","notes":"已在 Windows 11 x64 用 Python 3.12.10 便携包完成 stdlib 与 SQLite 最小实验；第三方库、GPU 和具体课程依赖仍需另测。"},
-    {"id":"vscode","name":"Visual Studio Code","aliases":["visual studio code","vs code","vscode"],"disciplines":["computer"],"category":"代码编辑器","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"free","control":"gui/plugin","support":"catalog-only","notes":"适合做文件、扩展和工作区检查。"},
-    {"id":"git","name":"Git","aliases":["git"],"disciplines":["computer"],"category":"版本控制","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"cli","support":"catalog-only","notes":"可验证仓库状态，但禁止自动提交或覆盖用户历史。"},
-    {"id":"jupyter","name":"Jupyter Notebook / JupyterLab","aliases":["jupyter","jupyterlab","notebook"],"disciplines":["computer","math-physics"],"category":"交互式计算","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"browser/cli","support":"catalog-only","notes":"适合实验数据与代码证据关联。"},
-    {"id":"mysql","name":"MySQL","aliases":["mysql","mysql workbench"],"disciplines":["computer"],"category":"数据库","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"cli/gui","support":"verified-run","notes":"已在 Windows 11 x64 用 MySQL 8.0.46 二进制包建立隔离实例（端口 33307），完成建库、建表、聚合查询和正常关闭；未改动系统 3306 服务。"},
-    {"id":"docker","name":"Docker","aliases":["docker","docker desktop"],"disciplines":["computer"],"category":"容器环境","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"free/commercial-terms","control":"cli","support":"catalog-only","notes":"需确认虚拟化与商业授权条件。"},
-    {"id":"r-rstudio","name":"R / RStudio","aliases":["rstudio","r for windows","rstudio desktop"],"disciplines":["computer","biology-agriculture","medicine-health","economics-management","psychology-social","math-physics"],"category":"统计与数据分析","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"cli/gui","support":"catalog-only","notes":"记录 R 版本和包版本。"},
-    {"id":"weka","name":"Weka","aliases":["weka"],"disciplines":["computer","biology-agriculture"],"category":"机器学习教学","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"cli/gui","support":"verified-run","notes":"已用 Weka 3.8.7 和内置 JDK 17 完成 J48 十折交叉验证，测试数据为 10 条 mini iris。"},
-    {"id":"ensp","name":"eNSP","aliases":["ensp","enterprise network simulation platform"],"disciplines":["networking"],"category":"网络仿真","priority":"P0","platforms":["Windows"],"license":"vendor","control":"gui","support":"verified-diagnose","notes":"已完成只读检测和保守兼容提示，尚未实现课程步骤执行。"},
-    {"id":"packet-tracer","name":"Cisco Packet Tracer","aliases":["packet tracer","cisco packet tracer"],"disciplines":["networking"],"category":"网络仿真","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"account/campus","control":"gui","support":"catalog-only","notes":"需要 NetAcad 账号，不能分发安装包。"},
-    {"id":"wireshark","name":"Wireshark","aliases":["wireshark"],"disciplines":["networking"],"category":"网络抓包","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"cli/gui","support":"catalog-only","notes":"抓包可能包含隐私，必须本地保存并提示脱敏。"},
-    {"id":"kali-linux","name":"Kali Linux","aliases":["kali","kali linux"],"disciplines":["networking"],"category":"安全实验环境","priority":"P1","platforms":["虚拟机"],"license":"open-source","control":"cli/gui","support":"catalog-only","notes":"必须限制在授权靶场，禁止对真实网络自动扫描。"},
-    {"id":"gns3","name":"GNS3","aliases":["gns3"],"disciplines":["networking"],"category":"网络仿真","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui/remote","support":"catalog-only","notes":"依赖网络设备镜像，镜像授权由用户自行提供。"},
-    {"id":"multisim","name":"NI Multisim","aliases":["multisim","ni multisim"],"disciplines":["electronics"],"category":"电路仿真","priority":"P1","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"需绑定具体版本和课程电路文件。"},
-    {"id":"proteus","name":"Proteus","aliases":["proteus","labcenter proteus"],"disciplines":["electronics"],"category":"电路与单片机仿真","priority":"P1","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"版本、元件库和单片机模型必须一起记录。"},
-    {"id":"keil-mdk","name":"Keil MDK / µVision","aliases":["keil","keil mdk","uvision"],"disciplines":["electronics"],"category":"嵌入式开发","priority":"P1","platforms":["Windows"],"license":"commercial/free-edition","control":"gui/cli","support":"catalog-only","notes":"需确认器件包和授权版本。"},
-    {"id":"quartus-prime","name":"Intel Quartus Prime","aliases":["quartus","quartus prime","intel quartus"],"disciplines":["electronics"],"category":"FPGA/EDA","priority":"P2","platforms":["Windows","Linux"],"license":"commercial/free-edition","control":"gui","support":"catalog-only","notes":"安装体积大，依赖器件库和开发板。"},
-    {"id":"vivado","name":"AMD/Xilinx Vivado","aliases":["vivado","xilinx vivado","amd vivado"],"disciplines":["electronics"],"category":"FPGA/EDA","priority":"P2","platforms":["Windows","Linux"],"license":"commercial/free-edition","control":"gui/tcl","support":"catalog-only","notes":"支持 Tcl 脚本验证，但安装和授权较重。"},
-    {"id":"labview","name":"NI LabVIEW","aliases":["labview","ni labview"],"disciplines":["electronics","mechanical"],"category":"测试测量与图形化编程","priority":"P2","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"常配合硬件驱动，需记录驱动与设备型号。"},
-    {"id":"logisim","name":"Logisim / Logisim Evolution","aliases":["logisim","logisim evolution"],"disciplines":["electronics","computer"],"category":"数字逻辑仿真","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui","support":"catalog-only","notes":"轻量、适合作为数字电路首批适配对象。"},
-    {"id":"solidworks","name":"SOLIDWORKS","aliases":["solidworks"],"disciplines":["mechanical"],"category":"三维CAD","priority":"P2","platforms":["Windows"],"license":"commercial/campus","control":"gui/api","support":"catalog-only","notes":"版本和许可证服务器强绑定。"},
-    {"id":"autocad","name":"AutoCAD","aliases":["autocad","autodesk autocad"],"disciplines":["mechanical","civil-architecture"],"category":"工程制图","priority":"P1","platforms":["Windows","macOS"],"license":"commercial/campus","control":"gui/cli","support":"catalog-only","notes":"可先做安装和版本检测。"},
-    {"id":"ansys","name":"ANSYS","aliases":["ansys","ansys mechanical","ansys fluent","workbench"],"disciplines":["mechanical","civil-architecture"],"category":"有限元/CFD仿真","priority":"P2","platforms":["Windows","Linux"],"license":"commercial/campus","control":"gui/script","support":"catalog-only","notes":"求解时间长，需保留输入、网格和日志。"},
-    {"id":"abaqus","name":"Abaqus","aliases":["abaqus","simulia abaqus"],"disciplines":["mechanical","civil-architecture"],"category":"有限元分析","priority":"P2","platforms":["Windows","Linux"],"license":"commercial/campus","control":"gui/python","support":"catalog-only","notes":"Python 脚本可复现，但求解资源需求高。"},
-    {"id":"revit","name":"Autodesk Revit","aliases":["revit","autodesk revit"],"disciplines":["civil-architecture"],"category":"BIM","priority":"P1","platforms":["Windows"],"license":"commercial/campus","control":"gui/plugin","support":"catalog-only","notes":"版本必须与课程模板一致，不能自动升级模型。"},
-    {"id":"sketchup","name":"SketchUp","aliases":["sketchup","trimble sketchup"],"disciplines":["civil-architecture","media-design"],"category":"三维建模","priority":"P1","platforms":["Windows","macOS"],"license":"free/commercial","control":"gui","support":"catalog-only","notes":"课程通常要求网页版或指定版本。"},
-    {"id":"staad-pro","name":"STAAD.Pro","aliases":["staad","staad pro","staad.pro"],"disciplines":["civil-architecture"],"category":"结构分析","priority":"P2","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"需要结构类型和设计规范一起记录。"},
-    {"id":"arcgis-pro","name":"ArcGIS Pro","aliases":["arcgis","arcgis pro","esri"],"disciplines":["civil-architecture","geoscience-environment"],"category":"GIS","priority":"P2","platforms":["Windows"],"license":"commercial/campus","control":"gui/python","support":"catalog-only","notes":"许可、坐标系和扩展模块需一起核验。"},
-    {"id":"qgis","name":"QGIS","aliases":["qgis"],"disciplines":["civil-architecture","geoscience-environment","biology-agriculture"],"category":"GIS","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui/python","support":"catalog-only","notes":"适合作为GIS首批适配对象。"},
-    {"id":"chemdraw","name":"ChemDraw / ChemOffice","aliases":["chemdraw","chemoffice","chem 3d"],"disciplines":["chemistry-materials","biology-agriculture","medicine-health"],"category":"化学结构绘制","priority":"P1","platforms":["Windows","macOS"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"模板和化学样式版本敏感。"},
-    {"id":"origin","name":"Origin / OriginPro","aliases":["origin","originpro","originlab"],"disciplines":["chemistry-materials","biology-agriculture","medicine-health","math-physics"],"category":"数据分析与绘图","priority":"P1","platforms":["Windows"],"license":"commercial/campus","control":"gui/script","support":"catalog-only","notes":"需保留项目文件与导出图。"},
-    {"id":"gaussian","name":"Gaussian","aliases":["gaussian","gaussview"],"disciplines":["chemistry-materials"],"category":"量子化学","priority":"P2","platforms":["Windows","Linux"],"license":"commercial/campus","control":"cli/gui","support":"catalog-only","notes":"通常通过服务器或计算中心运行。"},
-    {"id":"vesta","name":"VESTA","aliases":["vesta"],"disciplines":["chemistry-materials","geoscience-environment"],"category":"晶体结构可视化","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"freeware","control":"gui","support":"catalog-only","notes":"可先做文件打开与截图验证。"},
-    {"id":"aspen-plus","name":"Aspen Plus","aliases":["aspen plus","aspenplus","hysys","aspen hysys"],"disciplines":["chemistry-materials"],"category":"化工流程模拟","priority":"P2","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"物性数据库和版本直接影响结果。"},
-    {"id":"imagej","name":"ImageJ / Fiji","aliases":["imagej","fiji","imagej2"],"disciplines":["biology-agriculture","medicine-health","chemistry-materials"],"category":"科学图像分析","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui/macro","support":"verified-run","notes":"已在 Windows 11 x64 用 ImageJ 1.54f + Java 17 的 -batch 模式生成图像、测量像素并统计粒子面积；插件生态和 GUI 操作仍需另测。"},
-    {"id":"pymol","name":"PyMOL","aliases":["pymol"],"disciplines":["biology-agriculture","medicine-health","chemistry-materials"],"category":"分子可视化","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"open-source/commercial-build","control":"gui/cli","support":"catalog-only","notes":"注意开源版与官方商业构建的授权差异。"},
-    {"id":"mega","name":"MEGA","aliases":["mega","mega11","mega x"],"disciplines":["biology-agriculture","medicine-health"],"category":"序列分析","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"free/commercial-terms","control":"gui","support":"catalog-only","notes":"需保留比对参数与数据库版本。"},
-    {"id":"qiime2","name":"QIIME 2","aliases":["qiime2","qiime 2"],"disciplines":["biology-agriculture"],"category":"微生物组分析","priority":"P2","platforms":["Linux","WSL","conda"],"license":"open-source","control":"cli","support":"catalog-only","notes":"环境隔离和数据库版本是关键。"},
-    {"id":"3d-slicer","name":"3D Slicer","aliases":["3d slicer","slicer"],"disciplines":["medicine-health"],"category":"医学影像","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui/python","support":"catalog-only","notes":"病例影像必须本地匿名化处理。"},
-    {"id":"osirix-horos","name":"OsiriX / Horos","aliases":["osirix","horos"],"disciplines":["medicine-health"],"category":"DICOM影像","priority":"P2","platforms":["macOS"],"license":"commercial/open-source-variant","control":"gui","support":"catalog-only","notes":"平台限制明显，Windows 课程应优先 3D Slicer。"},
-    {"id":"fsl","name":"FSL","aliases":["fsl","fmrib software library"],"disciplines":["medicine-health"],"category":"神经影像分析","priority":"P2","platforms":["Linux","macOS","WSL"],"license":"free/registration","control":"cli","support":"catalog-only","notes":"通常在服务器或 WSL 中运行。"},
-    {"id":"spss","name":"IBM SPSS Statistics","aliases":["spss","ibm spss"],"disciplines":["economics-management","psychology-social","medicine-health"],"category":"统计分析","priority":"P1","platforms":["Windows","macOS"],"license":"commercial/campus","control":"gui/syntax","support":"catalog-only","notes":"记录数据文件、语法和输出。"},
-    {"id":"stata","name":"Stata","aliases":["stata","stata se"],"disciplines":["economics-management","psychology-social","medicine-health"],"category":"计量与统计","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"commercial/campus","control":"gui/cli","support":"catalog-only","notes":"do 文件适合复现实验步骤。"},
-    {"id":"eviews","name":"EViews","aliases":["eviews"],"disciplines":["economics-management"],"category":"计量经济学","priority":"P1","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"课程模板和变量定义需一起保存。"},
-    {"id":"anylogic","name":"AnyLogic","aliases":["anylogic"],"disciplines":["economics-management"],"category":"系统仿真","priority":"P2","platforms":["Windows","macOS","Linux"],"license":"commercial/campus","control":"gui/java","support":"catalog-only","notes":"模型文件与 Java 版本需核对。"},
-    {"id":"yonyou-u8","name":"用友 U8","aliases":["用友u8","yonyou u8","u8"],"disciplines":["economics-management"],"category":"ERP实训","priority":"P2","platforms":["Windows/Server"],"license":"campus/vendor","control":"web/gui","support":"catalog-only","notes":"通常是院校服务器和账号，不应尝试在本机安装破解版。"},
-    {"id":"eprime","name":"E-Prime","aliases":["e-prime","eprime","e prime"],"disciplines":["psychology-social"],"category":"行为实验","priority":"P2","platforms":["Windows"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"时间精度敏感，不适合通用GUI自动点击。"},
-    {"id":"psychopy","name":"PsychoPy","aliases":["psychopy"],"disciplines":["psychology-social"],"category":"行为实验","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui/python","support":"catalog-only","notes":"可用 Python 实验脚本做验证入口。"},
-    {"id":"nvivo","name":"NVivo","aliases":["nvivo"],"disciplines":["psychology-social","humanities-law"],"category":"质性分析","priority":"P1","platforms":["Windows","macOS"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"项目文件含访谈隐私，必须本地处理。"},
-    {"id":"atlasti","name":"ATLAS.ti","aliases":["atlas.ti","atlas ti"],"disciplines":["psychology-social","humanities-law"],"category":"质性分析","priority":"P2","platforms":["Windows","macOS","web"],"license":"commercial/campus","control":"gui/web","support":"catalog-only","notes":"需要记录编码框架和项目版本。"},
-    {"id":"swat","name":"SWAT","aliases":["swat","swat model"],"disciplines":["geoscience-environment","biology-agriculture"],"category":"流域水文模型","priority":"P2","platforms":["Windows","Linux"],"license":"free/registration","control":"cli/gui","support":"catalog-only","notes":"输入数据、DEM 与参数集必须一起归档。"},
-    {"id":"hec-ras","name":"HEC-RAS","aliases":["hec-ras","hec ras"],"disciplines":["geoscience-environment","civil-architecture"],"category":"水力学模型","priority":"P1","platforms":["Windows"],"license":"freeware","control":"gui","support":"catalog-only","notes":"适合先做工程文件打开与版本确认。"},
-    {"id":"modflow","name":"MODFLOW","aliases":["modflow","visual modflow"],"disciplines":["geoscience-environment"],"category":"地下水模型","priority":"P2","platforms":["Windows","Linux"],"license":"free/commercial-gui","control":"cli/gui","support":"catalog-only","notes":"区分开源内核与商业图形界面授权。"},
-    {"id":"wrf","name":"WRF","aliases":["wrf","weather research and forecasting"],"disciplines":["geoscience-environment"],"category":"气象模式","priority":"P2","platforms":["Linux","WSL"],"license":"open-source","control":"cli","support":"catalog-only","notes":"通常需要高性能计算环境。"},
-    {"id":"matlab","name":"MATLAB / Simulink","aliases":["matlab","simulink"],"disciplines":["electronics","mechanical","math-physics","economics-management"],"category":"数值计算与仿真","priority":"P2","platforms":["Windows","macOS","Linux"],"license":"commercial/campus","control":"gui/cli","support":"catalog-only","notes":"工具箱授权差异大，必须记录 toolbox 清单。"},
-    {"id":"mathematica","name":"Wolfram Mathematica","aliases":["mathematica","wolfram"],"disciplines":["math-physics"],"category":"符号计算","priority":"P2","platforms":["Windows","macOS","Linux"],"license":"commercial/campus","control":"gui/script","support":"catalog-only","notes":"需记录内核版本与笔记本文件。"},
-    {"id":"latex-overleaf","name":"LaTeX / Overleaf","aliases":["latex","tex live","miktex","overleaf"],"disciplines":["math-physics","humanities-law"],"category":"学术排版","priority":"P0","platforms":["Windows","macOS","Linux","web"],"license":"open-source/web","control":"cli/gui/web","support":"catalog-only","notes":"本地编译或网页项目都要保留源文件。"},
-    {"id":"geant4","name":"Geant4","aliases":["geant4","geant 4"],"disciplines":["math-physics"],"category":"粒子输运仿真","priority":"P2","platforms":["Linux","macOS","Windows"],"license":"open-source","control":"cli","support":"catalog-only","notes":"需记录物理列表、几何和随机种子。"},
-    {"id":"photoshop","name":"Adobe Photoshop","aliases":["photoshop","adobe photoshop"],"disciplines":["media-design"],"category":"图像处理","priority":"P1","platforms":["Windows","macOS"],"license":"commercial/campus","control":"gui/plugin","support":"catalog-only","notes":"课程文件可能含智能对象和字体依赖。"},
-    {"id":"premiere-pro","name":"Adobe Premiere Pro","aliases":["premiere","premiere pro","adobe premiere"],"disciplines":["media-design"],"category":"视频剪辑","priority":"P1","platforms":["Windows","macOS"],"license":"commercial/campus","control":"gui","support":"catalog-only","notes":"工程文件依赖媒体路径和缓存。"},
-    {"id":"blender","name":"Blender","aliases":["blender"],"disciplines":["media-design"],"category":"三维动画","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"open-source","control":"gui/python","support":"catalog-only","notes":"可用 Python 验证场景打开和渲染设置。"},
-    {"id":"unity","name":"Unity","aliases":["unity","unity hub"],"disciplines":["media-design","computer"],"category":"实时交互","priority":"P1","platforms":["Windows","macOS"],"license":"free/commercial-terms","control":"gui/cli","support":"catalog-only","notes":"需记录编辑器版本和包依赖。"},
-    {"id":"figma","name":"Figma","aliases":["figma"],"disciplines":["media-design"],"category":"界面与协作设计","priority":"P0","platforms":["web","Windows","macOS"],"license":"account/free-tier","control":"web","support":"catalog-only","notes":"属于网页工具，应走浏览器自动化与导出验证。"},
-    {"id":"antconc","name":"AntConc","aliases":["antconc"],"disciplines":["humanities-law"],"category":"语料库分析","priority":"P0","platforms":["Windows","macOS","Linux"],"license":"freeware","control":"gui","support":"catalog-only","notes":"轻量，适合语料文件打开与统计验证。"},
-    {"id":"praat","name":"Praat","aliases":["praat"],"disciplines":["humanities-law","psychology-social"],"category":"语音分析","priority":"P1","platforms":["Windows","macOS","Linux"],"license":"freeware","control":"gui/script","support":"catalog-only","notes":"注意录音设备与音频采样参数。"},
-    {"id":"pkulaw","name":"北大法宝","aliases":["北大法宝","pkulaw"],"disciplines":["humanities-law"],"category":"法律数据库","priority":"P1","platforms":["web"],"license":"campus/subscription","control":"web","support":"catalog-only","notes":"主要保存检索记录和引用，不下载受版权限制的全文包。"},
-    {"id":"westlaw","name":"Westlaw / LexisNexis","aliases":["westlaw","lexisnexis","lexis"],"disciplines":["humanities-law"],"category":"法律数据库","priority":"P2","platforms":["web"],"license":"subscription","control":"web","support":"catalog-only","notes":"依赖院校订阅，需严格保存检索证据与访问权限。"}
+    {
+      "id": "python",
+      "name": "Python",
+      "aliases": [
+        "python",
+        "anaconda",
+        "miniconda"
+      ],
+      "disciplines": [
+        "computer",
+        "chemistry-materials",
+        "biology-agriculture",
+        "economics-management",
+        "geoscience-environment",
+        "math-physics"
+      ],
+      "category": "编程与科学计算",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli/script",
+      "support": "verified-run",
+      "notes": "已在 Windows 11 x64 用 Python 3.12.10 便携包完成 stdlib 与 SQLite 最小实验；第三方库、GPU 和具体课程依赖仍需另测。",
+      "verify": {
+        "cmd": "python {script}",
+        "expect": [
+          "\"mean\": 87.6",
+          "\"stdev\": 6.58",
+          "\"database_sum\": 438",
+          "\"database_count\": 5",
+          "\"sqlite\": \"3.49.1\""
+        ],
+        "timeoutMs": 60000,
+        "deterministic": true,
+        "note": "smoke_python.py：statistics 求均值/标准差 + sqlite3 建表插入查询。数值与机器无关；platform 字段随系统版本变，**不要断言**。实测 Python 3.12.10（NuGet 便携包），标准库与 SQLite 均可用；第三方库、CUDA、Anaconda 环境不在本命令覆盖范围。"
+      }
+    },
+    {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "aliases": [
+        "visual studio code",
+        "vs code",
+        "vscode"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "代码编辑器",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "free",
+      "control": "gui/plugin",
+      "support": "catalog-only",
+      "notes": "适合做文件、扩展和工作区检查。"
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "aliases": [
+        "git"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "版本控制",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli",
+      "support": "verified-run",
+      "notes": "可验证仓库状态，但禁止自动提交或覆盖用户历史。已实测最小仓库提交与哈希复现。",
+      "verify": {
+        "cmd": "git init && git add . && git commit -m init && git rev-parse HEAD",
+        "expect": [
+          "3b53206b98e723e99ef0d1528b5ff4edc5843ff0"
+        ],
+        "timeoutMs": 60000,
+        "deterministic": true,
+        "note": "固定 GIT_AUTHOR_DATE=GIT_COMMITTER_DATE=2024-01-01T00:00:00+0000、user.name='Lab Test'、user.email=lab@example.com、单文件 a.txt 内容 'hello\\n'、message 'init' 时，两次独立仓库得到同一 commit 3b53206b…；不固定时间/身份时哈希必然不同。Windows 下 core.autocrlf 会警告 LF→CRLF，不影响哈希判定（提交内容已规范化）。实测发行版为 WorkBuddy 自带 PortableGit 2.55.0.windows.3，官方 Git for Windows 行为一致。**禁止自动提交用户仓库**，此命令只用于一次性临时目录。"
+      }
+    },
+    {
+      "id": "jupyter",
+      "name": "Jupyter Notebook / JupyterLab",
+      "aliases": [
+        "jupyter",
+        "jupyterlab",
+        "notebook"
+      ],
+      "disciplines": [
+        "computer",
+        "math-physics"
+      ],
+      "category": "交互式计算",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "browser/cli",
+      "support": "catalog-only",
+      "notes": "适合实验数据与代码证据关联。"
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "aliases": [
+        "mysql",
+        "mysql workbench"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "数据库",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli/gui",
+      "support": "verified-run",
+      "notes": "已在 Windows 11 x64 用 MySQL 8.0.46 二进制包建立隔离实例（端口 33307），完成建库、建表、聚合查询和正常关闭；未改动系统 3306 服务。",
+      "verify": {
+        "cmd": "mysqld --defaults-file={my_ini} --port=33307 --datadir={datadir} --console",
+        "expect": [
+          "mysqld is alive"
+        ],
+        "reportExpect": [
+          "total: 3, average: 90.33, best: 96"
+        ],
+        "timeoutMs": 180000,
+        "deterministic": true,
+        "note": "隔离实例：独立端口 33307 + 独立 datadir，不注册服务、不碰系统 3306。流程是 initialize-insecure → 启动 → CREATE DATABASE/TABLE → INSERT → COUNT/AVG/MAX → shutdown。判定看查询输出 `total: 3, average: 90.33, best: 96`，不是看服务状态。生产权限、远程访问、MySQL 9.x 未覆盖。"
+      }
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "aliases": [
+        "docker",
+        "docker desktop"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "容器环境",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "free/commercial-terms",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "需确认虚拟化与商业授权条件。"
+    },
+    {
+      "id": "r-rstudio",
+      "name": "R / RStudio",
+      "aliases": [
+        "rstudio",
+        "r for windows",
+        "rstudio desktop"
+      ],
+      "disciplines": [
+        "computer",
+        "biology-agriculture",
+        "medicine-health",
+        "economics-management",
+        "psychology-social",
+        "math-physics"
+      ],
+      "category": "统计与数据分析",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli/gui",
+      "support": "verified-run",
+      "notes": "已在 Windows 11 x64 用 R 4.6.2 安装到独立目录跑通 Rscript 最小实验（mtcars 回归），两次输出完全一致；RStudio 桌面端本身未单独验证，R 包生态与图形设备未验。",
+      "verify": {
+        "cmd": "Rscript --vanilla {script}",
+        "expect": [
+          "MEAN:5.0000",
+          "SD:2.13809",
+          "COEF_INT:37.2851",
+          "COEF_WT:-5.3445",
+          "R2:0.7528",
+          "NROW:32"
+        ],
+        "timeoutMs": 120000,
+        "deterministic": true,
+        "note": "用内置 mtcars 数据集回归 mpg~wt，与机器无关；set.seed(42) 后 runif(1)=0.914806。Windows 下 --vanilla 会伴随 LC_* 警告，不影响结果，判定时忽略 stderr。"
+      }
+    },
+    {
+      "id": "weka",
+      "name": "Weka",
+      "aliases": [
+        "weka"
+      ],
+      "disciplines": [
+        "computer",
+        "biology-agriculture"
+      ],
+      "category": "机器学习教学",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli/gui",
+      "support": "verified-run",
+      "notes": "已用 Weka 3.8.7 和内置 JDK 17 完成 J48 十折交叉验证，测试数据为 10 条 mini iris。",
+      "verify": {
+        "cmd": "java -cp {weka_jar} weka.classifiers.trees.J48 -t {arff} -x 10",
+        "expect": [
+          "Correctly Classified Instances",
+          "90"
+        ],
+        "timeoutMs": 120000,
+        "deterministic": true,
+        "note": "10 条 mini iris ARFF + J48 十折交叉验证：正确分类 9/10，正确率 90%，输出混淆矩阵。需要 JDK 17（Weka 3.8.7 自带 jdk-17）。Weka 3.9/4.x、其他算法、GUI 操作未覆盖。"
+      }
+    },
+    {
+      "id": "ensp",
+      "name": "eNSP",
+      "aliases": [
+        "ensp",
+        "enterprise network simulation platform"
+      ],
+      "disciplines": [
+        "networking"
+      ],
+      "category": "网络仿真",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "vendor",
+      "control": "gui",
+      "support": "verified-diagnose",
+      "notes": "已完成只读检测和保守兼容提示，尚未实现课程步骤执行。"
+    },
+    {
+      "id": "packet-tracer",
+      "name": "Cisco Packet Tracer",
+      "aliases": [
+        "packet tracer",
+        "cisco packet tracer"
+      ],
+      "disciplines": [
+        "networking"
+      ],
+      "category": "网络仿真",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "account/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "需要 NetAcad 账号，不能分发安装包。"
+    },
+    {
+      "id": "wireshark",
+      "name": "Wireshark",
+      "aliases": [
+        "wireshark"
+      ],
+      "disciplines": [
+        "networking"
+      ],
+      "category": "网络抓包",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "抓包可能包含隐私，必须本地保存并提示脱敏。"
+    },
+    {
+      "id": "kali-linux",
+      "name": "Kali Linux",
+      "aliases": [
+        "kali",
+        "kali linux"
+      ],
+      "disciplines": [
+        "networking"
+      ],
+      "category": "安全实验环境",
+      "priority": "P1",
+      "platforms": [
+        "虚拟机"
+      ],
+      "license": "open-source",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "必须限制在授权靶场，禁止对真实网络自动扫描。"
+    },
+    {
+      "id": "gns3",
+      "name": "GNS3",
+      "aliases": [
+        "gns3"
+      ],
+      "disciplines": [
+        "networking"
+      ],
+      "category": "网络仿真",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui/remote",
+      "support": "catalog-only",
+      "notes": "依赖网络设备镜像，镜像授权由用户自行提供。"
+    },
+    {
+      "id": "multisim",
+      "name": "NI Multisim",
+      "aliases": [
+        "multisim",
+        "ni multisim"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "电路仿真",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "需绑定具体版本和课程电路文件。"
+    },
+    {
+      "id": "proteus",
+      "name": "Proteus",
+      "aliases": [
+        "proteus",
+        "labcenter proteus"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "电路与单片机仿真",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "版本、元件库和单片机模型必须一起记录。"
+    },
+    {
+      "id": "keil-mdk",
+      "name": "Keil MDK / µVision",
+      "aliases": [
+        "keil",
+        "keil mdk",
+        "uvision"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "嵌入式开发",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "需确认器件包和授权版本。"
+    },
+    {
+      "id": "quartus-prime",
+      "name": "Intel Quartus Prime",
+      "aliases": [
+        "quartus",
+        "quartus prime",
+        "intel quartus"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "FPGA/EDA",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "安装体积大，依赖器件库和开发板。"
+    },
+    {
+      "id": "vivado",
+      "name": "AMD/Xilinx Vivado",
+      "aliases": [
+        "vivado",
+        "xilinx vivado",
+        "amd vivado"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "FPGA/EDA",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui/tcl",
+      "support": "catalog-only",
+      "notes": "支持 Tcl 脚本验证，但安装和授权较重。"
+    },
+    {
+      "id": "labview",
+      "name": "NI LabVIEW",
+      "aliases": [
+        "labview",
+        "ni labview"
+      ],
+      "disciplines": [
+        "electronics",
+        "mechanical"
+      ],
+      "category": "测试测量与图形化编程",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "常配合硬件驱动，需记录驱动与设备型号。"
+    },
+    {
+      "id": "logisim",
+      "name": "Logisim / Logisim Evolution",
+      "aliases": [
+        "logisim",
+        "logisim evolution"
+      ],
+      "disciplines": [
+        "electronics",
+        "computer"
+      ],
+      "category": "数字逻辑仿真",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "verified-run",
+      "notes": "轻量、适合作为数字电路首批适配对象。已实测 `-b` 测试台可判定（直通电路 2/2 通过），需 JRE 21。",
+      "verify": {
+        "cmd": "java -jar logisim-evolution-3.8.0-all.jar -b {circ} -w main {vec}",
+        "expect": [
+          "Passed: 2, Failed: 0"
+        ],
+        "timeoutMs": 60000,
+        "deterministic": true,
+        "note": "需要 **JRE 21**（class 版本 65；本机用 Temurin 21.0.13 实测）。`.circ` 必须是 Logisim-evolution 3.8.0 自己的格式：电路里的组件用 `<comp lib=\"0\" loc=\"(x,y)\" name=\"Pin\">` + `<a name=\"label\" val=\"a\"/>`，**不能用 `<a name=\"Pin\">`**（会被静默丢弃）。测试向量是**独立文本文件** `.vec`，首行列名必须与 pin 的 `label` 完全一致。实测最小直通电路（Pin→wire→Pin）+ 2 行向量，两次运行都是 `Passed: 2, Failed: 0`。判定看 `Passed: N, Failed: 0`，不看退出码（`-b` 无论成败都返回 0）。**未覆盖**：AND 门等复合组件的连线几何（`inputs` 属性在 3.8.0 被忽略，默认 2 输入），需要 GUI 生成样本才能确认。"
+      }
+    },
+    {
+      "id": "solidworks",
+      "name": "SOLIDWORKS",
+      "aliases": [
+        "solidworks"
+      ],
+      "disciplines": [
+        "mechanical"
+      ],
+      "category": "三维CAD",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/api",
+      "support": "catalog-only",
+      "notes": "版本和许可证服务器强绑定。"
+    },
+    {
+      "id": "autocad",
+      "name": "AutoCAD",
+      "aliases": [
+        "autocad",
+        "autodesk autocad"
+      ],
+      "disciplines": [
+        "mechanical",
+        "civil-architecture"
+      ],
+      "category": "工程制图",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "可先做安装和版本检测。"
+    },
+    {
+      "id": "ansys",
+      "name": "ANSYS",
+      "aliases": [
+        "ansys",
+        "ansys mechanical",
+        "ansys fluent",
+        "workbench"
+      ],
+      "disciplines": [
+        "mechanical",
+        "civil-architecture"
+      ],
+      "category": "有限元/CFD仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/script",
+      "support": "catalog-only",
+      "notes": "求解时间长，需保留输入、网格和日志。"
+    },
+    {
+      "id": "abaqus",
+      "name": "Abaqus",
+      "aliases": [
+        "abaqus",
+        "simulia abaqus"
+      ],
+      "disciplines": [
+        "mechanical",
+        "civil-architecture"
+      ],
+      "category": "有限元分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/python",
+      "support": "catalog-only",
+      "notes": "Python 脚本可复现，但求解资源需求高。"
+    },
+    {
+      "id": "revit",
+      "name": "Autodesk Revit",
+      "aliases": [
+        "revit",
+        "autodesk revit"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "BIM",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/plugin",
+      "support": "catalog-only",
+      "notes": "版本必须与课程模板一致，不能自动升级模型。"
+    },
+    {
+      "id": "sketchup",
+      "name": "SketchUp",
+      "aliases": [
+        "sketchup",
+        "trimble sketchup"
+      ],
+      "disciplines": [
+        "civil-architecture",
+        "media-design"
+      ],
+      "category": "三维建模",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "free/commercial",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "课程通常要求网页版或指定版本。"
+    },
+    {
+      "id": "staad-pro",
+      "name": "STAAD.Pro",
+      "aliases": [
+        "staad",
+        "staad pro",
+        "staad.pro"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "结构分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "需要结构类型和设计规范一起记录。"
+    },
+    {
+      "id": "arcgis-pro",
+      "name": "ArcGIS Pro",
+      "aliases": [
+        "arcgis",
+        "arcgis pro",
+        "esri"
+      ],
+      "disciplines": [
+        "civil-architecture",
+        "geoscience-environment"
+      ],
+      "category": "GIS",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/python",
+      "support": "catalog-only",
+      "notes": "许可、坐标系和扩展模块需一起核验。"
+    },
+    {
+      "id": "qgis",
+      "name": "QGIS",
+      "aliases": [
+        "qgis"
+      ],
+      "disciplines": [
+        "civil-architecture",
+        "geoscience-environment",
+        "biology-agriculture"
+      ],
+      "category": "GIS",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui/python",
+      "support": "catalog-only",
+      "notes": "适合作为GIS首批适配对象。"
+    },
+    {
+      "id": "chemdraw",
+      "name": "ChemDraw / ChemOffice",
+      "aliases": [
+        "chemdraw",
+        "chemoffice",
+        "chem 3d"
+      ],
+      "disciplines": [
+        "chemistry-materials",
+        "biology-agriculture",
+        "medicine-health"
+      ],
+      "category": "化学结构绘制",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "模板和化学样式版本敏感。"
+    },
+    {
+      "id": "origin",
+      "name": "Origin / OriginPro",
+      "aliases": [
+        "origin",
+        "originpro",
+        "originlab"
+      ],
+      "disciplines": [
+        "chemistry-materials",
+        "biology-agriculture",
+        "medicine-health",
+        "math-physics"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/script",
+      "support": "catalog-only",
+      "notes": "需保留项目文件与导出图。"
+    },
+    {
+      "id": "gaussian",
+      "name": "Gaussian",
+      "aliases": [
+        "gaussian",
+        "gaussview"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "量子化学",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "通常通过服务器或计算中心运行。"
+    },
+    {
+      "id": "vesta",
+      "name": "VESTA",
+      "aliases": [
+        "vesta"
+      ],
+      "disciplines": [
+        "chemistry-materials",
+        "geoscience-environment"
+      ],
+      "category": "晶体结构可视化",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "freeware",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "可先做文件打开与截图验证。"
+    },
+    {
+      "id": "aspen-plus",
+      "name": "Aspen Plus",
+      "aliases": [
+        "aspen plus",
+        "aspenplus",
+        "hysys",
+        "aspen hysys"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "化工流程模拟",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "物性数据库和版本直接影响结果。"
+    },
+    {
+      "id": "imagej",
+      "name": "ImageJ / Fiji",
+      "aliases": [
+        "imagej",
+        "fiji",
+        "imagej2"
+      ],
+      "disciplines": [
+        "biology-agriculture",
+        "medicine-health",
+        "chemistry-materials"
+      ],
+      "category": "科学图像分析",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui/macro",
+      "support": "verified-run",
+      "notes": "已在 Windows 11 x64 用 ImageJ 1.54f + Java 17 的 -batch 模式生成图像、测量像素并统计粒子面积；插件生态和 GUI 操作仍需另测。",
+      "verify": {
+        "cmd": "java -jar {ij_jar} -batch {macro}",
+        "expect": [
+          "centerPixel=255",
+          "imageArea=65536",
+          "particleCount=1",
+          "particleArea=12892"
+        ],
+        "timeoutMs": 120000,
+        "deterministic": true,
+        "note": "无 GUI 的 -batch 宏模式：生成 256×256 图、填椭圆、读像素、测量、分析粒子。四个整数断言稳定；`imageMean` 是浮点，不同 Java 版本可能出现末位差，**不要拿它当唯一判据**。Fiji 专属插件、3D/GPU、GUI 交互未覆盖。"
+      }
+    },
+    {
+      "id": "pymol",
+      "name": "PyMOL",
+      "aliases": [
+        "pymol"
+      ],
+      "disciplines": [
+        "biology-agriculture",
+        "medicine-health",
+        "chemistry-materials"
+      ],
+      "category": "分子可视化",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source/commercial-build",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "注意开源版与官方商业构建的授权差异。"
+    },
+    {
+      "id": "mega",
+      "name": "MEGA",
+      "aliases": [
+        "mega",
+        "mega11",
+        "mega x"
+      ],
+      "disciplines": [
+        "biology-agriculture",
+        "medicine-health"
+      ],
+      "category": "序列分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "free/commercial-terms",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "需保留比对参数与数据库版本。"
+    },
+    {
+      "id": "qiime2",
+      "name": "QIIME 2",
+      "aliases": [
+        "qiime2",
+        "qiime 2"
+      ],
+      "disciplines": [
+        "biology-agriculture"
+      ],
+      "category": "微生物组分析",
+      "priority": "P2",
+      "platforms": [
+        "Linux",
+        "WSL",
+        "conda"
+      ],
+      "license": "open-source",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "环境隔离和数据库版本是关键。"
+    },
+    {
+      "id": "3d-slicer",
+      "name": "3D Slicer",
+      "aliases": [
+        "3d slicer",
+        "slicer"
+      ],
+      "disciplines": [
+        "medicine-health"
+      ],
+      "category": "医学影像",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui/python",
+      "support": "catalog-only",
+      "notes": "病例影像必须本地匿名化处理。"
+    },
+    {
+      "id": "osirix-horos",
+      "name": "OsiriX / Horos",
+      "aliases": [
+        "osirix",
+        "horos"
+      ],
+      "disciplines": [
+        "medicine-health"
+      ],
+      "category": "DICOM影像",
+      "priority": "P2",
+      "platforms": [
+        "macOS"
+      ],
+      "license": "commercial/open-source-variant",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "平台限制明显，Windows 课程应优先 3D Slicer。"
+    },
+    {
+      "id": "fsl",
+      "name": "FSL",
+      "aliases": [
+        "fsl",
+        "fmrib software library"
+      ],
+      "disciplines": [
+        "medicine-health"
+      ],
+      "category": "神经影像分析",
+      "priority": "P2",
+      "platforms": [
+        "Linux",
+        "macOS",
+        "WSL"
+      ],
+      "license": "free/registration",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "通常在服务器或 WSL 中运行。"
+    },
+    {
+      "id": "spss",
+      "name": "IBM SPSS Statistics",
+      "aliases": [
+        "spss",
+        "ibm spss"
+      ],
+      "disciplines": [
+        "economics-management",
+        "psychology-social",
+        "medicine-health"
+      ],
+      "category": "统计分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/syntax",
+      "support": "catalog-only",
+      "notes": "记录数据文件、语法和输出。"
+    },
+    {
+      "id": "stata",
+      "name": "Stata",
+      "aliases": [
+        "stata",
+        "stata se"
+      ],
+      "disciplines": [
+        "economics-management",
+        "psychology-social",
+        "medicine-health"
+      ],
+      "category": "计量与统计",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "do 文件适合复现实验步骤。"
+    },
+    {
+      "id": "eviews",
+      "name": "EViews",
+      "aliases": [
+        "eviews"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "计量经济学",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "课程模板和变量定义需一起保存。"
+    },
+    {
+      "id": "anylogic",
+      "name": "AnyLogic",
+      "aliases": [
+        "anylogic"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "系统仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/java",
+      "support": "catalog-only",
+      "notes": "模型文件与 Java 版本需核对。"
+    },
+    {
+      "id": "yonyou-u8",
+      "name": "用友 U8",
+      "aliases": [
+        "用友u8",
+        "yonyou u8",
+        "u8"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "ERP实训",
+      "priority": "P2",
+      "platforms": [
+        "Windows/Server"
+      ],
+      "license": "campus/vendor",
+      "control": "web/gui",
+      "support": "catalog-only",
+      "notes": "通常是院校服务器和账号，不应尝试在本机安装破解版。"
+    },
+    {
+      "id": "eprime",
+      "name": "E-Prime",
+      "aliases": [
+        "e-prime",
+        "eprime",
+        "e prime"
+      ],
+      "disciplines": [
+        "psychology-social"
+      ],
+      "category": "行为实验",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "时间精度敏感，不适合通用GUI自动点击。"
+    },
+    {
+      "id": "psychopy",
+      "name": "PsychoPy",
+      "aliases": [
+        "psychopy"
+      ],
+      "disciplines": [
+        "psychology-social"
+      ],
+      "category": "行为实验",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui/python",
+      "support": "catalog-only",
+      "notes": "可用 Python 实验脚本做验证入口。"
+    },
+    {
+      "id": "nvivo",
+      "name": "NVivo",
+      "aliases": [
+        "nvivo"
+      ],
+      "disciplines": [
+        "psychology-social",
+        "humanities-law"
+      ],
+      "category": "质性分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "项目文件含访谈隐私，必须本地处理。"
+    },
+    {
+      "id": "atlasti",
+      "name": "ATLAS.ti",
+      "aliases": [
+        "atlas.ti",
+        "atlas ti"
+      ],
+      "disciplines": [
+        "psychology-social",
+        "humanities-law"
+      ],
+      "category": "质性分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "web"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/web",
+      "support": "catalog-only",
+      "notes": "需要记录编码框架和项目版本。"
+    },
+    {
+      "id": "swat",
+      "name": "SWAT",
+      "aliases": [
+        "swat",
+        "swat model"
+      ],
+      "disciplines": [
+        "geoscience-environment",
+        "biology-agriculture"
+      ],
+      "category": "流域水文模型",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "free/registration",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "输入数据、DEM 与参数集必须一起归档。"
+    },
+    {
+      "id": "hec-ras",
+      "name": "HEC-RAS",
+      "aliases": [
+        "hec-ras",
+        "hec ras"
+      ],
+      "disciplines": [
+        "geoscience-environment",
+        "civil-architecture"
+      ],
+      "category": "水力学模型",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "freeware",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "适合先做工程文件打开与版本确认。"
+    },
+    {
+      "id": "modflow",
+      "name": "MODFLOW",
+      "aliases": [
+        "modflow",
+        "visual modflow"
+      ],
+      "disciplines": [
+        "geoscience-environment"
+      ],
+      "category": "地下水模型",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "free/commercial-gui",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "区分开源内核与商业图形界面授权。"
+    },
+    {
+      "id": "wrf",
+      "name": "WRF",
+      "aliases": [
+        "wrf",
+        "weather research and forecasting"
+      ],
+      "disciplines": [
+        "geoscience-environment"
+      ],
+      "category": "气象模式",
+      "priority": "P2",
+      "platforms": [
+        "Linux",
+        "WSL"
+      ],
+      "license": "open-source",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "通常需要高性能计算环境。"
+    },
+    {
+      "id": "matlab",
+      "name": "MATLAB / Simulink",
+      "aliases": [
+        "matlab",
+        "simulink"
+      ],
+      "disciplines": [
+        "electronics",
+        "mechanical",
+        "math-physics",
+        "economics-management"
+      ],
+      "category": "数值计算与仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "工具箱授权差异大，必须记录 toolbox 清单。"
+    },
+    {
+      "id": "mathematica",
+      "name": "Wolfram Mathematica",
+      "aliases": [
+        "mathematica",
+        "wolfram"
+      ],
+      "disciplines": [
+        "math-physics"
+      ],
+      "category": "符号计算",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/script",
+      "support": "catalog-only",
+      "notes": "需记录内核版本与笔记本文件。"
+    },
+    {
+      "id": "latex-overleaf",
+      "name": "LaTeX / Overleaf",
+      "aliases": [
+        "latex",
+        "tex live",
+        "miktex",
+        "overleaf"
+      ],
+      "disciplines": [
+        "math-physics",
+        "humanities-law"
+      ],
+      "category": "学术排版",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux",
+        "web"
+      ],
+      "license": "open-source/web",
+      "control": "cli/gui/web",
+      "support": "catalog-only",
+      "notes": "本地编译或网页项目都要保留源文件。"
+    },
+    {
+      "id": "geant4",
+      "name": "Geant4",
+      "aliases": [
+        "geant4",
+        "geant 4"
+      ],
+      "disciplines": [
+        "math-physics"
+      ],
+      "category": "粒子输运仿真",
+      "priority": "P2",
+      "platforms": [
+        "Linux",
+        "macOS",
+        "Windows"
+      ],
+      "license": "open-source",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "需记录物理列表、几何和随机种子。"
+    },
+    {
+      "id": "photoshop",
+      "name": "Adobe Photoshop",
+      "aliases": [
+        "photoshop",
+        "adobe photoshop"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "图像处理",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui/plugin",
+      "support": "catalog-only",
+      "notes": "课程文件可能含智能对象和字体依赖。"
+    },
+    {
+      "id": "premiere-pro",
+      "name": "Adobe Premiere Pro",
+      "aliases": [
+        "premiere",
+        "premiere pro",
+        "adobe premiere"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "视频剪辑",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "工程文件依赖媒体路径和缓存。"
+    },
+    {
+      "id": "blender",
+      "name": "Blender",
+      "aliases": [
+        "blender"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "三维动画",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui/python",
+      "support": "verified-run",
+      "notes": "已在 Windows 11 x64 用官方便携包 4.5.0 完成 headless CPU Cycles 渲染（128×128），像素级可复现；GUI 窗口可被桌宠定位并截图；GPU 渲染、EEVEE 与课程级工程文件未验证。",
+      "verify": {
+        "cmd": "blender -b --factory-startup -P {script}",
+        "expect": [
+          "RENDER_DONE",
+          "BL_VERSION: 4.5.0"
+        ],
+        "artifactExpect": [
+          "cube.png"
+        ],
+        "timeoutMs": 300000,
+        "deterministic": true,
+        "note": "CPU Cycles 8 采样渲 128×128 PNG；像素两次完全一致，但 PNG 字节含元数据差异，**必须比像素不能比文件哈希**。EEVEE 在无 GPU 上下文时不可靠，验证用 CYCLES。"
+      }
+    },
+    {
+      "id": "unity",
+      "name": "Unity",
+      "aliases": [
+        "unity",
+        "unity hub"
+      ],
+      "disciplines": [
+        "media-design",
+        "computer"
+      ],
+      "category": "实时交互",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "free/commercial-terms",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "需记录编辑器版本和包依赖。"
+    },
+    {
+      "id": "figma",
+      "name": "Figma",
+      "aliases": [
+        "figma"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "界面与协作设计",
+      "priority": "P0",
+      "platforms": [
+        "web",
+        "Windows",
+        "macOS"
+      ],
+      "license": "account/free-tier",
+      "control": "web",
+      "support": "catalog-only",
+      "notes": "属于网页工具，应走浏览器自动化与导出验证。"
+    },
+    {
+      "id": "antconc",
+      "name": "AntConc",
+      "aliases": [
+        "antconc"
+      ],
+      "disciplines": [
+        "humanities-law"
+      ],
+      "category": "语料库分析",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "freeware",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "轻量，适合语料文件打开与统计验证。"
+    },
+    {
+      "id": "praat",
+      "name": "Praat",
+      "aliases": [
+        "praat"
+      ],
+      "disciplines": [
+        "humanities-law",
+        "psychology-social"
+      ],
+      "category": "语音分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "freeware",
+      "control": "gui/script",
+      "support": "verified-run",
+      "notes": "注意录音设备与音频采样参数。已实测脚本模式可跑出确定性数值。",
+      "verify": {
+        "cmd": "Praat.exe --run {script}",
+        "expect": [
+          "PITCH:440.00",
+          "FRAMES:97",
+          "DONE"
+        ],
+        "timeoutMs": 90000,
+        "deterministic": true,
+        "note": "脚本：`Create Sound from formula` 生成 440 Hz 正弦（1 s / 44100 Hz）→ `To Pitch: 0, 75, 600` → 取 0.5 s 处基频。实测 **440.00 Hz**、Pitch 帧数 97；两次运行输出逐字节一致。注意 `--run` **不打印 Info 窗口**，判定必须读脚本写出的文件（`writeFileLine`/`appendFileLine`）。实测 Praat 6.4.50，GPU/声卡不参与，纯数值可复现。"
+      }
+    },
+    {
+      "id": "pkulaw",
+      "name": "北大法宝",
+      "aliases": [
+        "北大法宝",
+        "pkulaw"
+      ],
+      "disciplines": [
+        "humanities-law"
+      ],
+      "category": "法律数据库",
+      "priority": "P1",
+      "platforms": [
+        "web"
+      ],
+      "license": "campus/subscription",
+      "control": "web",
+      "support": "catalog-only",
+      "notes": "主要保存检索记录和引用，不下载受版权限制的全文包。"
+    },
+    {
+      "id": "westlaw",
+      "name": "Westlaw / LexisNexis",
+      "aliases": [
+        "westlaw",
+        "lexisnexis",
+        "lexis"
+      ],
+      "disciplines": [
+        "humanities-law"
+      ],
+      "category": "法律数据库",
+      "priority": "P2",
+      "platforms": [
+        "web"
+      ],
+      "license": "subscription",
+      "control": "web",
+      "support": "catalog-only",
+      "notes": "依赖院校订阅，需严格保存检索证据与访问权限。"
+    },
+    {
+      "id": "h3c-hcl",
+      "name": "H3C HCL 模拟器",
+      "aliases": [
+        "hcl",
+        "华三模拟器",
+        "h3c hcl"
+      ],
+      "disciplines": [
+        "networking"
+      ],
+      "category": "网络仿真",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "free",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "国内网络课程常用；需在华三官网注册后下载，镜像不随软件分发。"
+    },
+    {
+      "id": "pycharm",
+      "name": "PyCharm",
+      "aliases": [
+        "pycharm"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "代码编辑器",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "account/free-tier",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "社区版免费，专业版需授权；解释器路径需按课程环境核对。"
+    },
+    {
+      "id": "intellij-idea",
+      "name": "IntelliJ IDEA",
+      "aliases": [
+        "intellij",
+        "idea",
+        "intellij idea"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "代码编辑器",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "account/free-tier",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "社区版免费；Java / Kotlin 课程常用。"
+    },
+    {
+      "id": "visual-studio",
+      "name": "Visual Studio",
+      "aliases": [
+        "visual studio",
+        "vs2022",
+        "vs2019"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "代码编辑器",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "account/free-tier",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "社区版免费；C# / C++ 课程常用，安装组件需按课程勾选。"
+    },
+    {
+      "id": "dbeaver",
+      "name": "DBeaver",
+      "aliases": [
+        "dbeaver"
+      ],
+      "disciplines": [
+        "computer"
+      ],
+      "category": "数据库",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "通用数据库客户端，社区版免费；可用来核对建表结果。"
+    },
+    {
+      "id": "virtualbox",
+      "name": "Oracle VirtualBox",
+      "aliases": [
+        "virtualbox",
+        "vbox"
+      ],
+      "disciplines": [
+        "computer",
+        "networking"
+      ],
+      "category": "虚拟化",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "操作系统与网络课程常用来装 Linux；与 Hyper-V / WSL2 存在冲突，需先确认当前虚拟化方案。"
+    },
+    {
+      "id": "altium-designer",
+      "name": "Altium Designer",
+      "aliases": [
+        "altium",
+        "altium designer",
+        "ad"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "电路设计与PCB",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "学生可申请教育授权；安装包大，库文件版本需与课程一致。"
+    },
+    {
+      "id": "ltspice",
+      "name": "LTspice",
+      "aliases": [
+        "ltspice",
+        "lt spice"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "电路仿真",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "freeware",
+      "control": "gui",
+      "support": "verified-run",
+      "notes": "免费，模拟电路课程常用。已在 Windows 11 x64 用 26.1.1 跑通批处理瞬态仿真（RC 低通，10030 点），数值两次完全一致；GUI 可被桌宠定位并真实截图。前置条件：首次启动须点掉遥测授权对话框。AC/DC 扫描、子电路、厂商模型库未验证。",
+      "verify": {
+        "cmd": "LTspice.exe -b -ascii {netlist}",
+        "reportContains": [
+          "Total elapsed time",
+          "Total iterations"
+        ],
+        "artifactExpect": [
+          "rc_lowpass.raw",
+          "rc_lowpass.log"
+        ],
+        "timeoutMs": 120000,
+        "deterministic": true,
+        "note": "首次启动必须先点掉「Anonymously Share LTspice Usage Data」对话框，否则 -b 不产出任何文件也不退出（解包版与 MSI 安装版都一样）。示例 RC 低通：10030 点 × 6 变量，V(out) 峰值 4.966310 = 5×(1-e^-5)（5 个时间常数只充到 99.33%，不是满 5V），两次运行 60180 个数值最大差 0。"
+      }
+    },
+    {
+      "id": "lceda",
+      "name": "立创EDA",
+      "aliases": [
+        "lceda",
+        "嘉立创eda",
+        "立创eda"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "电路设计与PCB",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "web"
+      ],
+      "license": "free",
+      "control": "gui/web",
+      "support": "catalog-only",
+      "notes": "国产免费，网页版与客户端均可；云端工程依赖账号。"
+    },
+    {
+      "id": "modelsim",
+      "name": "ModelSim",
+      "aliases": [
+        "modelsim",
+        "questa",
+        "questasim"
+      ],
+      "disciplines": [
+        "electronics"
+      ],
+      "category": "数字逻辑仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/free-edition",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "厂商随 FPGA 工具提供的 Starter 版免费但容量受限，完整版需授权。"
+    },
+    {
+      "id": "catia",
+      "name": "CATIA",
+      "aliases": [
+        "catia"
+      ],
+      "disciplines": [
+        "mechanical"
+      ],
+      "category": "三维CAD",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "航空航天与汽车方向课程常用；授权成本高，需许可证服务器。"
+    },
+    {
+      "id": "ug-nx",
+      "name": "Siemens NX",
+      "aliases": [
+        "nx",
+        "ug",
+        "siemens nx",
+        "ug nx"
+      ],
+      "disciplines": [
+        "mechanical"
+      ],
+      "category": "三维CAD",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "模具与制造方向常用；安装体积大，与旧版文件兼容性需核对。"
+    },
+    {
+      "id": "creo",
+      "name": "PTC Creo",
+      "aliases": [
+        "creo",
+        "proe",
+        "pro/engineer"
+      ],
+      "disciplines": [
+        "mechanical"
+      ],
+      "category": "三维CAD",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "老课程可能仍称 Pro/E；版本差异对打开旧模型影响大。"
+    },
+    {
+      "id": "fusion-360",
+      "name": "Fusion 360",
+      "aliases": [
+        "fusion360",
+        "fusion 360",
+        "fusion"
+      ],
+      "disciplines": [
+        "mechanical"
+      ],
+      "category": "三维CAD",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "account/free-tier",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "教育与个人版免费，但必须联网登录；离线可用时间有限。"
+    },
+    {
+      "id": "pkpm",
+      "name": "PKPM",
+      "aliases": [
+        "pkpm"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "结构计算",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "国内结构设计课程常用；加密锁授权，换机需重新申请。"
+    },
+    {
+      "id": "yjk",
+      "name": "盈建科",
+      "aliases": [
+        "yjk",
+        "盈建科"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "结构计算",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "与 PKPM 并行的国产结构软件，课程可能只教其中一套。"
+    },
+    {
+      "id": "glodon",
+      "name": "广联达",
+      "aliases": [
+        "glodon",
+        "广联达"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "工程造价",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "造价与算量课程常用；按模块授权，教学版功能受限。"
+    },
+    {
+      "id": "sap2000",
+      "name": "SAP2000",
+      "aliases": [
+        "sap2000"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "结构分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "桥梁与空间结构常用；模型文件版本向下兼容性差。"
+    },
+    {
+      "id": "etabs",
+      "name": "ETABS",
+      "aliases": [
+        "etabs"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "结构分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "高层建筑结构分析；常与 SAP2000 同一套授权。"
+    },
+    {
+      "id": "midas",
+      "name": "MIDAS Civil / Gen",
+      "aliases": [
+        "midas",
+        "midas civil",
+        "midas gen"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "结构分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "桥梁与岩土方向常见；需确认课程用的是 Civil 还是 Gen。"
+    },
+    {
+      "id": "plaxis",
+      "name": "PLAXIS",
+      "aliases": [
+        "plaxis"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "岩土有限元",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "岩土与地下工程方向；本构模型选择对结果影响大。"
+    },
+    {
+      "id": "lumion",
+      "name": "Lumion",
+      "aliases": [
+        "lumion"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "建筑渲染",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "吃显卡；学生版导出有水印限制，课程作业需确认是否接受。"
+    },
+    {
+      "id": "rhino-grasshopper",
+      "name": "Rhino + Grasshopper",
+      "aliases": [
+        "rhino",
+        "grasshopper",
+        "rhino3d"
+      ],
+      "disciplines": [
+        "civil-architecture",
+        "media-design"
+      ],
+      "category": "三维建模",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "教育版授权；Grasshopper 随 Rhino 内置，参数化课程常一起用。"
+    },
+    {
+      "id": "civil-3d",
+      "name": "AutoCAD Civil 3D",
+      "aliases": [
+        "civil 3d",
+        "civil3d"
+      ],
+      "disciplines": [
+        "civil-architecture"
+      ],
+      "category": "工程制图",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "道路与场地设计；与普通 AutoCAD 分开安装，需确认课程版本。"
+    },
+    {
+      "id": "swmm",
+      "name": "EPA SWMM",
+      "aliases": [
+        "swmm",
+        "epa swmm"
+      ],
+      "disciplines": [
+        "geoscience-environment",
+        "civil-architecture"
+      ],
+      "category": "排水管网模拟",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "free",
+      "control": "gui/cli",
+      "support": "verified-run",
+      "notes": "免费；海绵城市与排水课程常用。已在 Windows 11 x64 用官方命令行求解器 5.2.4 跑通上游示例模型（.inp → .rpt/.out），两次运行 .out 二进制一致；GUI 版与课程级模型未验证。",
+      "verify": {
+        "cmd": "runswmm.exe {inp} {rpt} {out}",
+        "expect": [
+          "Simulation complete"
+        ],
+        "reportExpect": [
+          "Total Precipitation",
+          "Surface Runoff"
+        ],
+        "reportContains": [
+          "VERSION 5.2",
+          "Build 5.2.4"
+        ],
+        "timeoutMs": 120000,
+        "deterministic": true,
+        "note": "跑完看 .rpt：Total Precipitation 1.250 / Surface Runoff 0.726 / Infiltration Loss 0.519（acre-feet）；.out 两次运行逐字节一致。注意报告里正常就含 5 处 ERROR 字样（Continuity Error 指标名 + 表头），不能直接 grep。"
+      }
+    },
+    {
+      "id": "epanet",
+      "name": "EPANET",
+      "aliases": [
+        "epanet"
+      ],
+      "disciplines": [
+        "geoscience-environment",
+        "civil-architecture"
+      ],
+      "category": "水力学模型",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "free",
+      "control": "gui/cli",
+      "support": "verified-run",
+      "notes": "免费；供水管网水力与水质模拟。已在 Windows 11 x64 用官方命令行求解器 2.3.5 跑通 Net1 示例（Flow Ratio 1.000、Mass Ratio 1.00000），两次运行报告除时间戳外一致；GUI 版与课程级模型未验证。",
+      "verify": {
+        "cmd": "runepanet.exe {inp} {rpt}",
+        "expect": [
+          "EPANET ran successfully"
+        ],
+        "reportExpect": [
+          "Flow Ratio",
+          "Mass Ratio"
+        ],
+        "reportContains": [
+          "Version 2.3.05"
+        ],
+        "timeoutMs": 120000,
+        "deterministic": true,
+        "note": "Net1.inp：Flow Ratio 1.000、Mass Ratio 1.00000、Total Outflow 1100.000、Balanced after ≥24 且无 unbalanced；两报告除时间戳外逐字符一致。"
+      }
+    },
+    {
+      "id": "envi",
+      "name": "ENVI",
+      "aliases": [
+        "envi"
+      ],
+      "disciplines": [
+        "geoscience-environment"
+      ],
+      "category": "遥感图像处理",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "遥感课程标配，常与 ArcGIS 配合；授权按院校浮动版发放。"
+    },
+    {
+      "id": "south-cass",
+      "name": "南方 CASS",
+      "aliases": [
+        "cass",
+        "南方cass",
+        "south cass"
+      ],
+      "disciplines": [
+        "geoscience-environment",
+        "civil-architecture"
+      ],
+      "category": "工程制图",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "基于 AutoCAD 运行，必须先装对应版本 CAD；教学版有节点限制。"
+    },
+    {
+      "id": "pix4d",
+      "name": "Pix4Dmapper",
+      "aliases": [
+        "pix4d",
+        "pix4dmapper"
+      ],
+      "disciplines": [
+        "geoscience-environment"
+      ],
+      "category": "图像处理",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "无人机摄影测量；空三与建模吃显卡和内存。"
+    },
+    {
+      "id": "aermod",
+      "name": "AERMOD",
+      "aliases": [
+        "aermod"
+      ],
+      "disciplines": [
+        "geoscience-environment"
+      ],
+      "category": "数值计算与仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "free",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "免费但需配套气象与地形预处理工具，命令行输入文件可校验。"
+    },
+    {
+      "id": "materials-studio",
+      "name": "Materials Studio",
+      "aliases": [
+        "materials studio",
+        "ms"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "数值计算与仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "商业材料模拟平台，常配许可证服务器；本地多为客户端。"
+    },
+    {
+      "id": "mdi-jade",
+      "name": "MDI Jade",
+      "aliases": [
+        "jade",
+        "mdi jade"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "晶体结构可视化",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "XRD 谱图物相分析，材料与化学实验课常见。"
+    },
+    {
+      "id": "avogadro",
+      "name": "Avogadro",
+      "aliases": [
+        "avogadro"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "分子可视化",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "免费开源分子编辑与可视化，适合做结构文件准备。"
+    },
+    {
+      "id": "vasp",
+      "name": "VASP",
+      "aliases": [
+        "vasp"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "数值计算与仿真",
+      "priority": "P2",
+      "platforms": [
+        "Linux"
+      ],
+      "license": "campus/vendor",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "只能跑在 Linux 集群；桌面端通常只做输入文件准备与结果整理。"
+    },
+    {
+      "id": "lammps",
+      "name": "LAMMPS",
+      "aliases": [
+        "lammps"
+      ],
+      "disciplines": [
+        "chemistry-materials",
+        "math-physics"
+      ],
+      "category": "数值计算与仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli",
+      "support": "catalog-only",
+      "notes": "免费开源，多编译在服务器运行；输入脚本与日志可校验。"
+    },
+    {
+      "id": "ovito",
+      "name": "OVITO",
+      "aliases": [
+        "ovito"
+      ],
+      "disciplines": [
+        "chemistry-materials",
+        "math-physics"
+      ],
+      "category": "分子可视化",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "free/commercial",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "基础版免费，分析模块需授权；常用于轨迹后处理。"
+    },
+    {
+      "id": "aspen-hysys",
+      "name": "Aspen HYSYS",
+      "aliases": [
+        "hysys",
+        "aspen hysys"
+      ],
+      "disciplines": [
+        "chemistry-materials"
+      ],
+      "category": "化工流程模拟",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "油气与炼化方向常用；物性方法与 Aspen Plus 不同，课程要求需核对。"
+    },
+    {
+      "id": "graphpad-prism",
+      "name": "GraphPad Prism",
+      "aliases": [
+        "prism",
+        "graphpad",
+        "graphpad prism"
+      ],
+      "disciplines": [
+        "biology-agriculture",
+        "medicine-health"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "生物医学统计作图，院校授权常见；.pzfx 工程文件可校验。"
+    },
+    {
+      "id": "snapgene",
+      "name": "SnapGene",
+      "aliases": [
+        "snapgene"
+      ],
+      "disciplines": [
+        "biology-agriculture"
+      ],
+      "category": "序列分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "分子克隆设计；有免费查看器，编辑功能需授权。"
+    },
+    {
+      "id": "dps",
+      "name": "DPS 数据处理系统",
+      "aliases": [
+        "dps",
+        "dps数据处理系统"
+      ],
+      "disciplines": [
+        "biology-agriculture"
+      ],
+      "category": "统计分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "国产农业试验统计软件，国内农学课程常用。"
+    },
+    {
+      "id": "sas",
+      "name": "SAS",
+      "aliases": [
+        "sas",
+        "sas studio"
+      ],
+      "disciplines": [
+        "math-physics",
+        "economics-management",
+        "biology-agriculture",
+        "medicine-health"
+      ],
+      "category": "统计分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "account/free-tier",
+      "control": "gui/cli",
+      "support": "catalog-only",
+      "notes": "SAS OnDemand for Academics 可免费云端使用；桌面版需院校授权。"
+    },
+    {
+      "id": "radiant-dicom",
+      "name": "RadiAnt DICOM Viewer",
+      "aliases": [
+        "radiant",
+        "radiant dicom",
+        "radiantviewer"
+      ],
+      "disciplines": [
+        "medicine-health"
+      ],
+      "category": "DICOM影像",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "个人非商业用途免费；真实病例数据必须本地匿名化，不得上传。"
+    },
+    {
+      "id": "complete-anatomy",
+      "name": "Complete Anatomy",
+      "aliases": [
+        "complete anatomy"
+      ],
+      "disciplines": [
+        "medicine-health"
+      ],
+      "category": "三维解剖",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "subscription",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "商业订阅，多在机房或院校统一采购。"
+    },
+    {
+      "id": "spm",
+      "name": "SPM",
+      "aliases": [
+        "spm",
+        "spm12"
+      ],
+      "disciplines": [
+        "medicine-health"
+      ],
+      "category": "神经影像分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "依赖 MATLAB 或独立运行版；影像数据必须匿名化后处理。"
+    },
+    {
+      "id": "power-bi",
+      "name": "Power BI",
+      "aliases": [
+        "power bi",
+        "powerbi"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "freeware",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "桌面版免费；发布到服务与共享需要组织账号。"
+    },
+    {
+      "id": "tableau",
+      "name": "Tableau",
+      "aliases": [
+        "tableau"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "account/free-tier",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "学生可申请免费授权；工作簿文件可离线校验。"
+    },
+    {
+      "id": "wind",
+      "name": "Wind 金融终端",
+      "aliases": [
+        "wind",
+        "wind金融终端",
+        "万得"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "subscription",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "院校订阅，终端绑定账号；数据导出受授权条款限制。"
+    },
+    {
+      "id": "ths-ifind",
+      "name": "同花顺 iFinD",
+      "aliases": [
+        "ifind",
+        "同花顺",
+        "ths"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "subscription",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "院校订阅；与 Wind 功能重叠，课程通常只要求其一。"
+    },
+    {
+      "id": "choice",
+      "name": "东方财富 Choice",
+      "aliases": [
+        "choice",
+        "东方财富choice"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "数据分析与绘图",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "subscription",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "院校订阅，终端绑定账号。"
+    },
+    {
+      "id": "uipath",
+      "name": "UiPath",
+      "aliases": [
+        "uipath",
+        "uipath studio"
+      ],
+      "disciplines": [
+        "economics-management"
+      ],
+      "category": "流程自动化",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "account/free-tier",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "社区版免费；财务机器人课程常用，需确认版本与浏览器扩展。"
+    },
+    {
+      "id": "gams",
+      "name": "GAMS",
+      "aliases": [
+        "gams"
+      ],
+      "disciplines": [
+        "economics-management",
+        "math-physics"
+      ],
+      "category": "系统仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/free-edition",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "厂商提供规模受限的演示版，完整版需授权；优化建模课程常用。"
+    },
+    {
+      "id": "mplus",
+      "name": "Mplus",
+      "aliases": [
+        "mplus"
+      ],
+      "disciplines": [
+        "psychology-social"
+      ],
+      "category": "统计分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "cli/gui",
+      "support": "catalog-only",
+      "notes": "潜变量与多层模型，命令式为主；输入 .inp 文件可校验。"
+    },
+    {
+      "id": "amos",
+      "name": "IBM SPSS Amos",
+      "aliases": [
+        "amos",
+        "spss amos"
+      ],
+      "disciplines": [
+        "psychology-social"
+      ],
+      "category": "统计分析",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "结构方程模型，通常随 SPSS 院校授权一起发放。"
+    },
+    {
+      "id": "jasp",
+      "name": "JASP",
+      "aliases": [
+        "jasp"
+      ],
+      "disciplines": [
+        "psychology-social",
+        "math-physics"
+      ],
+      "category": "统计分析",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "免费开源，界面接近 SPSS，适合做统计课程入门替代。"
+    },
+    {
+      "id": "opensesame",
+      "name": "OpenSesame",
+      "aliases": [
+        "opensesame",
+        "open sesame"
+      ],
+      "disciplines": [
+        "psychology-social"
+      ],
+      "category": "行为实验",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "免费替代 E-Prime；但时间精度必须在目标机器上实测，不能只看能否启动。"
+    },
+    {
+      "id": "maxqda",
+      "name": "MAXQDA",
+      "aliases": [
+        "maxqda"
+      ],
+      "disciplines": [
+        "psychology-social",
+        "humanities-law"
+      ],
+      "category": "质性分析",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/campus",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "质性编码，与 NVivo 同类；项目文件可校验。"
+    },
+    {
+      "id": "kinovea",
+      "name": "Kinovea",
+      "aliases": [
+        "kinovea"
+      ],
+      "disciplines": [
+        "psychology-social"
+      ],
+      "category": "视频处理",
+      "priority": "P1",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "免费运动视频分析，体育与运动生物力学课程常用。"
+    },
+    {
+      "id": "noteexpress",
+      "name": "NoteExpress",
+      "aliases": [
+        "noteexpress"
+      ],
+      "disciplines": [
+        "humanities-law",
+        "math-physics",
+        "medicine-health"
+      ],
+      "category": "文献管理",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/subscription",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "国内高校常用文献管理，院校授权；题录库文件可校验。"
+    },
+    {
+      "id": "cajviewer",
+      "name": "CAJViewer",
+      "aliases": [
+        "cajviewer",
+        "caj"
+      ],
+      "disciplines": [
+        "humanities-law",
+        "math-physics",
+        "medicine-health"
+      ],
+      "category": "文献阅读",
+      "priority": "P0",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "freeware",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "读知网 CAJ 格式必需；仅做阅读与批注，不做批量下载。"
+    },
+    {
+      "id": "zotero",
+      "name": "Zotero",
+      "aliases": [
+        "zotero"
+      ],
+      "disciplines": [
+        "humanities-law",
+        "math-physics",
+        "medicine-health",
+        "biology-agriculture"
+      ],
+      "category": "文献管理",
+      "priority": "P0",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "免费开源，浏览器插件抓取文献；本地库目录可直接备份校验。"
+    },
+    {
+      "id": "illustrator",
+      "name": "Adobe Illustrator",
+      "aliases": [
+        "illustrator",
+        "ai",
+        "adobe ai"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "矢量设计",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "Adobe 教育版；与 Photoshop 同一套授权与安装器。"
+    },
+    {
+      "id": "indesign",
+      "name": "Adobe InDesign",
+      "aliases": [
+        "indesign",
+        "adobe id"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "版面排版",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "书籍画册多页排版；字体缺失是作业打不开的常见原因。"
+    },
+    {
+      "id": "after-effects",
+      "name": "Adobe After Effects",
+      "aliases": [
+        "after effects",
+        "ae",
+        "adobe ae"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "动效合成",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "吃内存与显卡，渲染慢；工程文件依赖素材路径，换机易丢链接。"
+    },
+    {
+      "id": "cinema-4d",
+      "name": "Cinema 4D",
+      "aliases": [
+        "c4d",
+        "cinema 4d",
+        "cinema4d"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "三维动画",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "国内教学常用；有学生版，渲染器插件需单独确认。"
+    },
+    {
+      "id": "maya",
+      "name": "Autodesk Maya",
+      "aliases": [
+        "maya",
+        "autodesk maya"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "三维动画",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "教育版免费；对显卡与内存要求高。"
+    },
+    {
+      "id": "3ds-max",
+      "name": "Autodesk 3ds Max",
+      "aliases": [
+        "3ds max",
+        "3dsmax",
+        "max"
+      ],
+      "disciplines": [
+        "media-design",
+        "civil-architecture"
+      ],
+      "category": "三维建模",
+      "priority": "P2",
+      "platforms": [
+        "Windows"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "只支持 Windows；室内设计与效果图课程常用。"
+    },
+    {
+      "id": "houdini",
+      "name": "Houdini",
+      "aliases": [
+        "houdini",
+        "sidefx houdini"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "三维动画",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "Apprentice 版免费但限制商用与分辨率；学习曲线陡。"
+    },
+    {
+      "id": "nuke",
+      "name": "Nuke",
+      "aliases": [
+        "nuke",
+        "foundry nuke"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "视频剪辑",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "commercial/free-edition",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "非商业版免费；节点式合成，工程文件可校验。"
+    },
+    {
+      "id": "unreal-engine",
+      "name": "Unreal Engine",
+      "aliases": [
+        "unreal",
+        "unreal engine",
+        "ue5",
+        "ue4"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "实时交互",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "free/commercial-terms",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "免费使用，商用需按分成协议；项目体积大，首次编译耗时长。"
+    },
+    {
+      "id": "audition",
+      "name": "Adobe Audition",
+      "aliases": [
+        "audition",
+        "adobe au"
+      ],
+      "disciplines": [
+        "media-design"
+      ],
+      "category": "音频处理",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "Adobe 教育版；编导与播音课程常用。"
+    },
+    {
+      "id": "comsol",
+      "name": "COMSOL Multiphysics",
+      "aliases": [
+        "comsol",
+        "comsol multiphysics"
+      ],
+      "disciplines": [
+        "math-physics",
+        "chemistry-materials",
+        "mechanical"
+      ],
+      "category": "数值计算与仿真",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "多物理场耦合仿真，吃内存；模型文件 .mph 可校验。"
+    },
+    {
+      "id": "maple",
+      "name": "Maple",
+      "aliases": [
+        "maple"
+      ],
+      "disciplines": [
+        "math-physics"
+      ],
+      "category": "符号计算",
+      "priority": "P2",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "campus/vendor",
+      "control": "gui",
+      "support": "catalog-only",
+      "notes": "符号计算，与 Mathematica 同类；课程通常只要求其一。"
+    },
+    {
+      "id": "texlive",
+      "name": "TeX Live / MiKTeX",
+      "aliases": [
+        "texlive",
+        "miktex",
+        "ctex",
+        "latex"
+      ],
+      "disciplines": [
+        "math-physics",
+        "computer",
+        "humanities-law"
+      ],
+      "category": "学术排版",
+      "priority": "P1",
+      "platforms": [
+        "Windows",
+        "macOS",
+        "Linux"
+      ],
+      "license": "open-source",
+      "control": "cli",
+      "support": "verified-run",
+      "notes": "本地 LaTeX 发行版；Overleaf 是在线替代。编译日志可用于结果校验。MiKTeX 25.12 已实测可编译并复现。",
+      "verify": {
+        "cmd": "pdflatex -interaction=nonstopmode -halt-on-error {tex}",
+        "expect": [
+          "Output written on test.pdf (1 page"
+        ],
+        "artifactExpect": [
+          "test.pdf"
+        ],
+        "timeoutMs": 180000,
+        "deterministic": true,
+        "note": "MiKTeX 25.12 basic（当前用户安装，Windows 11 x64）。首次编译会按需联网装宏包；确定性必须设 SOURCE_DATE_EPOCH + FORCE_SOURCE_DATE=1——不设时 PDF 的 CreationDate/ID 每次不同，设后两次编译逐字节一致（48175 B，sha256 abbe299c8f899938fa622db07a68dffe960882f61892f3cc87b4521c8da55cf4）。测试文档只用英文 + amsmath；中文需 ctex，会额外拉包。"
+      }
+    }
   ]
 }

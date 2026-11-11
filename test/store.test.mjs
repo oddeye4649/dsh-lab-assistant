@@ -93,5 +93,11 @@ test('步骤可记录实测值与是否通过，重复记录会合并证据', ()
     evidence: ['data/ping.txt', 'screenshots/01-topology.png'],
   })
   assert.deepEqual(again.steps[0].evidence, ['screenshots/01-topology.png', 'data/ping.txt'])
-  assert.throws(() => store.recordStepResult(experiment.id, { title: '不存在的步骤', actual: 'x' }), /找不到该步骤/)
+  // 0.15.26 起：面板建的实验没有步骤，给标题就自动补一条，不再直接抛错
+  const appended = store.recordStepResult(experiment.id, { title: '新补的步骤', actual: '现场记录' })
+  assert.equal(appended.steps.length, 2)
+  assert.equal(appended.steps[1].title, '新补的步骤')
+  assert.equal(appended.steps[1].actual, '现场记录')
+  // 连标题都不给才报错
+  assert.throws(() => store.recordStepResult(experiment.id, { actual: 'x' }), /需要 stepId 或步骤标题/)
 })
