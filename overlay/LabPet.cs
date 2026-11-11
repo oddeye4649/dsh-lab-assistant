@@ -381,6 +381,8 @@ namespace LabPet
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            // 双缓冲 + UserPaint 时系统不再擦背景，不先铺底会在圆角外留下黑块
+            using (var bg = new SolidBrush(BackColor)) e.Graphics.FillRectangle(bg, ClientRectangle);
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
             Color fill;
@@ -1159,11 +1161,12 @@ namespace LabPet
 
         protected override void OnDrawItem(DrawItemEventArgs e)
         {
-            if (e.Index < 0) return;
             bool sel = (e.State & DrawItemState.Selected) != 0;
-            using (var b = new SolidBrush(sel ? Ui.Soft : Color.White)) e.Graphics.FillRectangle(b, e.Bounds);
+            using (var b = new SolidBrush(sel ? Color.White : BackColor)) e.Graphics.FillRectangle(b, e.Bounds);
+            // e.Index < 0 是「关闭状态」的画法：这时要画 Text，否则未选中时整格空白
+            string text = e.Index >= 0 && e.Index < Items.Count ? Convert.ToString(Items[e.Index]) : Text;
             var r = new Rectangle(e.Bounds.Left + 6, e.Bounds.Top, Math.Max(10, e.Bounds.Width - 10), e.Bounds.Height);
-            TextRenderer.DrawText(e.Graphics, Convert.ToString(Items[e.Index]), Font, r, sel ? Ui.AccentDark : Ui.Text,
+            TextRenderer.DrawText(e.Graphics, text, Font, r, sel ? Ui.AccentDark : Ui.Text,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         }
     }
@@ -1264,7 +1267,7 @@ namespace LabPet
         private PictureBox mascot;
         private CardPanel cardList, cardNew, cardTpl, cardPet;
         private Label tplCountLabel;
-        private PillButton btnRefresh, btnOpenDir, btnCreate, btnBrowse, btnBrowseReq, btnGenerate, btnOpenReport, btnPetSave, btnQuitPet, btnBrowseData, btnBrowseDataset;
+        private PillButton btnRefresh, btnOpenDir, btnCreate, btnBrowse, btnBrowseReq, btnPetSave, btnQuitPet, btnBrowseData, btnBrowseDataset;
         private PillButton btnDeleteExp, btnDeleteTpl;
         private List<Dictionary<string, object>> experiments = new List<Dictionary<string, object>>();
         private string lastDocx = "";
@@ -1377,7 +1380,7 @@ namespace LabPet
             Controls.Add(cardList);
 
             // ── 新建实验 ──
-            cardNew = new CardPanel { Left = 24, Top = 270, Width = 468, Height = 254 };
+            cardNew = new CardPanel { Left = 24, Top = 270, Width = 468, Height = 292 };
             cardNew.Controls.Add(MakeLabel("新建实验", 16, 10, 240, 24, new Font("Microsoft YaHei UI", 10.5f, FontStyle.Bold), Ui.AccentDark));
             cardNew.Controls.Add(MakeLabel("名称", 16, 44, 40, 22, Font, Ui.Text));
             titleBox = MakeInput(60, 40, 392);
@@ -1412,11 +1415,21 @@ namespace LabPet
             studentBox = MakeInput(192, 168, 132);
             studentBox.Text = Program.Config.studentId;
             cardNew.Controls.Add(studentBox);
+
+            // 实验要求：老师给的指导书 / 要求文件。之前只有字段没有控件，
+            // 面板建实验时 requirementPath 永远是空串，报告内容只能靠对话补。
+            cardNew.Controls.Add(MakeLabel("要求", 16, 204, 40, 22, Font, Ui.Text));
+            requirementBox = MakeInput(60, 200, 300);
+            cardNew.Controls.Add(requirementBox);
+            btnBrowseReq = MakeButton("浏览…", 368, 198, 84, true);
+            btnBrowseReq.Height = 28;
+            btnBrowseReq.Click += delegate { BrowseRequirement(); };
+            cardNew.Controls.Add(btnBrowseReq);
             btnCreate = MakeButton("创建实验档案", 252, 102, 200, false);
             btnCreate.Height = 30;
             btnCreate.Click += delegate { CreateExperiment(); };
             cardNew.Controls.Add(btnCreate);
-            cardNew.Controls.Add(MakeLabel("模板 = 「模板库」里选中的那个；要求可留空，之后在对话里补", 16, 222, 430, 18, new Font("Microsoft YaHei UI", 8f), Ui.Muted));
+            cardNew.Controls.Add(MakeLabel("模板 = 「模板库」里选中的那个；要求文件建议选上，可留空后在对话里补", 16, 262, 430, 18, new Font("Microsoft YaHei UI", 8f), Ui.Muted));
             Controls.Add(cardNew);
 
             // ── 生成报告 ──
@@ -1545,6 +1558,8 @@ namespace LabPet
             if (btnCreate != null) btnCreate.Left = Math.Max(180, w - 16 - btnCreate.Width);
             if (btnBrowseDataset != null) btnBrowseDataset.Left = Math.Max(120, w - 16 - btnBrowseDataset.Width);
             if (datasetBox != null) datasetBox.Width = Math.Max(100, btnBrowseDataset.Left - 60 - 8);
+            if (btnBrowseReq != null) btnBrowseReq.Left = Math.Max(120, w - 16 - btnBrowseReq.Width);
+            if (requirementBox != null && btnBrowseReq != null) requirementBox.Width = Math.Max(100, btnBrowseReq.Left - 60 - 8);
 
             top = cardNew.Top + cardNew.Height + 16;
             cardTpl.Left = m; cardTpl.Top = top; cardTpl.Width = w;
@@ -1555,7 +1570,12 @@ namespace LabPet
                 btnBrowse.Left = Math.Max(120, rightEdge - btnBrowse.Width);
             }
             if (templateBox != null && btnBrowse != null) templateBox.Width = Math.Max(100, btnBrowse.Left - 60 - 8);
-            if (templateCombo != null && templateBox != null) templateCombo.Width = templateBox.Width;
+            if (templateCombo != null)
+               {
+                   int tplRight = btnBrowse != null ? btnBrowse.Left - 8 : w - 16;
+                   templateCombo.Width = Math.Max(160, tplRight - 60);
+               }
+               if (templateCombo != null && templateBox != null) templateBox.Width = templateCombo.Width;
 
             top = cardTpl.Top + cardTpl.Height + 16;
             cardPet.Left = m; cardPet.Top = top; cardPet.Width = w;
@@ -1770,6 +1790,9 @@ namespace LabPet
                 {
                     templateCombo.Items.Add(new TemplateItem { Id = "", Name = "(未导入模板，点导入…)" });
                 }
+                // DropDownList 默认 SelectedIndex=-1，关闭状态下不显示任何文字：
+                // 用户会以为「模板下拉框是坏的」。没有选中项时选第一个。
+                if (templateCombo.SelectedIndex < 0 && templateCombo.Items.Count > 0) templateCombo.SelectedIndex = 0;
                 if (tplCountLabel != null)
                 {
                     int real = 0;
@@ -1778,9 +1801,12 @@ namespace LabPet
                         var item = entry as TemplateItem;
                         if (item != null && !string.IsNullOrEmpty(item.Id)) real++;
                     }
+                    var selected = templateCombo.SelectedItem as TemplateItem;
+                    string selectedName = selected != null && !string.IsNullOrEmpty(selected.Id)
+                        ? selected.Name : "（未选，将用内置模板）";
                     tplCountLabel.Text = real == 0
                         ? "模板库为空：点「导入…」选一份老师给的 .docx"
-                        : "已存 " + real + " 份模板，切换后新建的实验会绑定它";
+                        : "当前模板：" + selectedName + "　（共 " + real + " 份，切换后新建的实验会绑定它）";
                 }
             }
             catch { }

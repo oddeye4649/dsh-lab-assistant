@@ -178,7 +178,7 @@ server = http.createServer(async (req, res) => {
   if (parsed.searchParams.get('token') !== token) return sendJson(res, 403, { ok: false, error: 'token 不匹配' })
   if (!parsed.pathname.startsWith('/dsh-lab/api/')) return sendJson(res, 404, { ok: false, error: '路径不存在' })
   try { await api(req, res, parsed.pathname, parsed.searchParams) }
-  catch (error) { sendJson(res, 500, { ok: false, error: String(error?.message || error) }) }
+  catch (error) { sendJson(res, error?.statusCode || 500, { ok: false, error: String(error?.message || error) }) }
 })
 server.on('error', (error) => {
   process.stderr.write(`[lab-assistant-desktop] 本地服务出错：${error?.message || error}\n`)

@@ -103,7 +103,7 @@ export default {
           try { parsed = new URL(req.url || '/', 'http://127.0.0.1') } catch { return sendJson(res, 400, { ok: false, error: '请求地址无效' }) }
           if (parsed.searchParams.get('token') !== token) return sendJson(res, 403, { ok: false, error: 'token 不匹配' })
           if (!parsed.pathname.startsWith('/dsh-lab/api/')) return sendJson(res, 404, { ok: false, error: '路径不存在' })
-          api(req, res, parsed.pathname, parsed.searchParams).catch((error) => sendJson(res, 500, { ok: false, error: String(error?.message || error) }))
+          api(req, res, parsed.pathname, parsed.searchParams).catch((error) => sendJson(res, error?.statusCode || 500, { ok: false, error: String(error?.message || error) }))
         })
         ipcServer.on('error', () => { ipcServer = null })
         ipcServer.listen(0, '127.0.0.1', () => {
@@ -1399,7 +1399,8 @@ experiment_update(status:"archived") 归档并把 actions 明细压成聚合摘�
       }
 
       const json = (res, status, value) => sendJson(res, status, value)
-      const fail = (res, error, status = 400) => json(res, status, { ok: false, error: String(error?.message || error || '请求失败') })
+      // 4xx 语义由错误自带的 statusCode 决定（如请求体过大 413），其余仍按 400
+      const fail = (res, error, status = error?.statusCode || 400) => json(res, status, { ok: false, error: String(error?.message || error || '请求失败') })
 
       const api = createApiHandler({
         store,
