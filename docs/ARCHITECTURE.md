@@ -56,8 +56,8 @@
 WorkBuddy 侧的解法：
 
 1. `desktop/start.mjs` 是**唯一**持有 `store` / `core` 的进程，监听 `127.0.0.1` 随机端口 + 随机 token。
-2. 它把 `{pid, port, token, version}` 写到 `<数据目录>/desktop.json`（发现文件，权限 0600）。
-3. `mcp/server.mjs` 每次工具调用都读发现文件：
+2. 它把 `{pid, port, token, version}` 写到 `<数据目录>/desktop.json`（发现文件，权限 0600；写侧用临时文件 + rename 原子替换）。
+3. `mcp/server.mjs` 每次工具调用都读发现文件（读到空/半截会做两次极短重试，不会把「启动器正在写」误判成「没开」）：
    - 进程活着 → 把调用转成 `POST /dsh-lab/api/tool`（方法名受 `lib/api.mjs` 的 `CORE_METHODS` 白名单约束）；
    - 文件不存在 / 进程已死 → 清掉残留并退回本地模式（此时也只有它一个写入点）；
    - **进程活着但服务无响应 → 明确报错，绝不降级本地**，否则就会造成双写。

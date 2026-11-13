@@ -8,12 +8,13 @@
 import { createInterface } from 'node:readline'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readFileSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { homedir } from 'node:os'
 
 import { ExperimentStore } from '../lib/store.mjs'
 import { KnowledgeBase } from '../lib/knowledge.mjs'
 import { createCore } from '../lib/core.mjs'
+import { isPidAlive, readDiscoveryFile } from '../lib/discovery.mjs'
 
 const PACKAGE_ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const VERSION = (() => {
@@ -464,10 +465,16 @@ function normalizeArgs(method, rawArgs) {
 const DISCOVERY_FILE = join(HOME, 'desktop.json')
 
 function readBridge() {
-  let d
-  try {
-    d = JSON.parse(readFileSync(DISCOVERY_FILE, 'utf8'))
-  } catch { return null }
+  // 读侧对「文件存在但空/半截」做短重试，见 lib/discovery.mjs。
+  // 启动器恰好正在写 discovery 时，旧实现会把它当成「没开」而退回本地写，形成双写入点。
+  const d = readDiscoveryFile(DISCOVERY_FILE)
+  if (!d) {
+    // 文件在、重试后仍读不出：上次强杀留下的半截，或权限问题。
+    // 不清掉的话，之后每次调用都要白等重试，永远回不到「干净地当没开」。
+    // 正在写的启动器持有的是临时文件，删目标不影响它的 rename。
+    try { if (existsSync(DISCOVERY_FILE)) unlinkSync(DISCOVERY_FILE) } catch { }
+    return null
+  }
   if (!Number.isInteger(d.port) || d.port <= 0 || !String(d.token || '')) return null
   if (!bridgeAlive(d)) {
     // 启动器被强杀 / 崩溃后，退出钩子来不及清理发现文件。
@@ -478,8 +485,7 @@ function readBridge() {
   return d
 }
 function bridgeAlive(d) {
-  if (!Number.isInteger(d.pid) || d.pid <= 0) return false
-  try { process.kill(d.pid, 0); return true } catch { return false }
+  return isPidAlive(d && d.pid)
 }
 async function forwardToDesktop(d, methodName, args) {
   const url = `http://127.0.0.1:${d.port}/dsh-lab/api/tool?token=${encodeURIComponent(d.token)}`

@@ -27,6 +27,7 @@ import { createCore } from '../lib/core.mjs'
 import { createApiHandler, assetStatus } from '../lib/api.mjs'
 import { sendJson } from '../lib/http.mjs'
 import { startOverlay, stopOverlay, activeOverlay, overlayRequest } from '../lib/overlay.mjs'
+import { isPidAlive, readDiscoveryFile, writeDiscoveryFile } from '../lib/discovery.mjs'
 
 const PACKAGE_ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const HOME = process.env.LAB_ASSISTANT_HOME
@@ -46,12 +47,13 @@ mkdirSync(HOME, { recursive: true })
 const argv = process.argv.slice(2)
 const has = (flag) => argv.includes(flag)
 
+// 发现文件的读写统一走 lib/discovery.mjs：写侧原子替换、读侧对「正在写」做短重试。
+// 这里保留同名薄包装，调用点不用动。
 function readDiscovery() {
-  try { return JSON.parse(readFileSync(DISCOVERY, 'utf8')) } catch { return null }
+  return readDiscoveryFile(DISCOVERY)
 }
 function isAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false
-  try { process.kill(pid, 0); return true } catch { return false }
+  return isPidAlive(pid)
 }
 async function probe(d) {
   if (!d?.port || !d?.token) return false
@@ -196,12 +198,11 @@ const port = server.address().port
 apiInfo = { base: `http://127.0.0.1:${port}/dsh-lab/api`, token }
 
 function writeDiscovery() {
-  const data = {
+  // 原子写：MCP 可能随时来读，不能让它看到「已截断但还没写」的空文件。
+  writeDiscoveryFile(DISCOVERY, {
     pid: process.pid, port, token, version: VERSION,
     homeDir: HOME, startedAt: new Date().toISOString(),
-  }
-  writeFileSync(DISCOVERY, `${JSON.stringify(data, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
-  try { chmodSync(DISCOVERY, 0o600) } catch { /* Windows 上尽力而为 */ }
+  })
 }
 function clearDiscovery() {
   try {
