@@ -134,6 +134,10 @@ DSH  →  desktop_tutorial(实验编号, 窗口, steps[])
 
 ## 安装
 
+> **体积提示（只影响下载，不影响功能）**：仓库里有一份讲解视频工程 `video/`（成片、封面、字幕、分镜时间轴与生成脚本，约 26.6 MB），**只是演示素材**——插件运行时一个字节都不读它，不会因此安装额外软件、依赖或启动额外进程。
+> - 装 Release 的 `.tgz`：`package.json` 的 `files` 白名单不含 `video/`，包内一条视频都没有（实测 104 文件 / 约 13 MB），体积和加入视频前完全一样。
+> - `git clone` / 下载 ZIP / `git pull`：会一次性多下这 26.6 MB 静态文件（`--depth 1` 只省历史，不省这部分）。介意的话改用 `.tgz`，或 `git clone --filter=blob:none <仓库链接>` 延迟拉取大文件。
+
 > 本机没有独立的 `dsh` 命令行工具；安装统一通过 **DSH 桌面端内置的 `plugin_manager`** 完成。桌宠与"实验助手"面板只在 **Windows 桌面端** 出现，Web profile 不会显示桌宠（只有对话工具可用）。
 
 ### 方式一：本地目录链接（开发/调试首选）
@@ -206,6 +210,7 @@ Agent 会按 [INSTALL_WORKBUDDY.md](INSTALL_WORKBUDDY.md) 执行 clone → 追�
 
 1. 装 **Node 22 或更新版本**；拉代码（公开仓库，不需要账号）：
    `git clone https://github.com/oddeye4649/dsh-lab-assistant.git`
+   仓库含约 26.6 MB 的 `video/` 演示素材（插件运行不读它）；不想下这部分可用 `git clone --filter=blob:none https://github.com/oddeye4649/dsh-lab-assistant.git`，详见上方「体积提示」。
 2. 在 `~/.workbuddy/mcp.json` 的 `mcpServers` 里**追加**一条（只加这一条，别覆盖已有的连接器）：
 
 ```jsonc

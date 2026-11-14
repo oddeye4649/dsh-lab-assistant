@@ -37,6 +37,8 @@ git clone https://github.com/oddeye4649/dsh-lab-assistant.git <仓库目录>
 `<仓库目录>` 建议放在用户主目录下（例如 `~/dsh-lab-assistant`）。公开仓库，不需要账号。
 确认这几个文件都在：`package.json`、`mcp/server.mjs`、`desktop/start.mjs`、`overlay/LabPet.cs`。
 
+> 体积提示：仓库含 `video/` 讲解视频工程（约 26.6 MB 静态文件，插件运行完全不读，也不构成运行依赖）。若用户介意下载体积，把 clone 命令换成 `git clone --filter=blob:none https://github.com/oddeye4649/dsh-lab-assistant.git <仓库目录>`（延迟拉取大文件），或改从 Releases 下载 `.tgz` 解压（包内不含 `video/`）。不要为省体积去删用户目录里的文件或改仓库源码。
+
 ### 3. 配置 MCP
 
 读 `~/.workbuddy/mcp.json`；文件不存在就新建 `{"mcpServers": {}}`。在 `mcpServers` 里**追加**：
