@@ -1,0 +1,45 @@
+{
+  "topic": "实验助手插件 0.16.1 · 这次适配了 WorkBuddy",
+  "version": "0.16.1",
+  "voice": {
+    "engine": "edge-tts",
+    "voice": "zh-CN-XiaoyiNeural",
+    "rate": "+4%",
+    "pitch": "+12Hz",
+    "source": "scripts/promo_audio_v2.py:23,46 — 与 2026-10-31 B 站演示片（BV1KQxy6qEJn, 72s / mix_v2.wav 71.624s）同一参数；同句重合成 7.49s vs 原片 7.49s 交叉验证通过"
+  },
+  "bgm": "D:/git文件/4.mp3",
+  "style_rule": "趣味口语科普 · 面向零基础 · 单角色『大肥鱼』· 动作全部取自 assets/pet/",
+  "chapters": ["开场", "插件能干啥", "WorkBuddy 适配", "硬边界与实话", "收尾"],
+  "shots": [
+    {"id":"s01","chapter":"开场","style":"title","actions":["wave_2"],"text":"实验助手插件 0.16.1：这回也住进 WorkBuddy 了。","card":{"type":"big-quote","style":"paper","title":"实验助手 0.16.1","body":"一个仓库 · 两个宿主 · 同一只大肥鱼"},"decor":["flower","stars"]},
+
+    {"id":"s02","chapter":"开场","style":"solo","actions":["wave_1","wave_2","wave_3","wave_2"],"text":"主人好呀，我是大肥鱼～今天讲讲实验助手插件。","card":null,"decor":["stars"]},
+    {"id":"s03","chapter":"开场","style":"solo","actions":["happy","idle","happy"],"text":"你不是常说 WorkBuddy 能免费薅、所以也经常用嘛？","card":null,"decor":["bubble"]},
+    {"id":"s04","chapter":"开场","style":"solo","actions":["point","idle","point"],"text":"这回，咱们把它也适配上啦！走，看看它到底能干啥。","card":null,"decor":["arrow"]},
+
+    {"id":"s05","chapter":"插件能干啥","style":"demo","actions":["idle","happy","idle"],"text":"先说它是啥：一个管实验流程、帮写实验报告的高校实验插件。","card":{"type":"icon-list","style":"paper","items":["实验档案：一次实验一份","真实结果：只记你做过的","报告生成：照老师模板来"]},"decor":["numbers"]},
+    {"id":"s06","chapter":"插件能干啥","style":"demo","actions":["read_1","read_2","read_3","read_2"],"text":"一次实验一个档案，能创建、能恢复，删了还进回收站。","card":{"type":"checklist","style":"note","items":["创建 / 列表 / 读取 / 更新","克隆实验，重复做不用重填","删除移入 _trash，可恢复"]},"decor":["tape"]},
+    {"id":"s07","chapter":"插件能干啥","style":"demo","actions":["typing_1","typing_2","typing_3","typing_4"],"text":"做过的结果如实记进去：实测值、通过没通过、截图路径。","card":{"type":"icon-list","style":"window","items":["实测值","通过 / 失败","截图路径","失败会变成本机反例"]},"decor":[]},
+    {"id":"s08","chapter":"插件能干啥","style":"emphasis","actions":["confused","idle"],"text":"报告里的数字只能来自真实记录，它不会替你编数据。","card":{"type":"big-quote","style":"note","title":"加速，但不编造","body":"没有实测，就没有数字","stamp":"硬规则"},"decor":["burst","circle"]},
+    {"id":"s09","chapter":"插件能干啥","style":"focus","actions":[],"text":"老师发的 Word 模板能导入，生成 Word 加 Markdown 两份报告。","card":{"type":"before-after","style":"paper","before":"老师给的 .docx / .md 模板","after":"自动填好环境·步骤·截图 + Word / Markdown"},"decor":["arrow"]},
+    {"id":"s10","chapter":"插件能干啥","style":"emphasis","actions":["happy","wave_2"],"text":"缺的实测值、班级教师这些，留【待补】，不会瞎填。","card":{"type":"big-quote","style":"note","title":"【待补】","body":"个人信息与真实测量值，留给你自己填","stamp":"要核对"},"decor":["burst","circle"]},
+
+    {"id":"s11","chapter":"WorkBuddy 适配","style":"empty","actions":[],"text":"好，基础能力摆这儿。这次的重点是——","card":null,"decor":[]},
+    {"id":"s12","chapter":"WorkBuddy 适配","style":"demo","actions":["swim_1","swim_3","swim_5","swim_7"],"text":"一个仓库、一个 GitHub 链接，DSH 和 WorkBuddy 各装各的那一半。","card":{"type":"before-after","style":"paper","before":"同一个 GitHub 链接","after":"DSH 装插件本体 · WorkBuddy 配 MCP + 桌面启动器"},"decor":["arrow"]},
+    {"id":"s13","chapter":"WorkBuddy 适配","style":"focus","actions":[],"text":"WorkBuddy 的对话入口是 25 个 MCP 工具，装上要在连接器里点一下信任。","card":{"type":"icon-list","style":"window","items":["零依赖 JSON-RPC over stdio","配好 ~/.workbuddy/mcp.json","连接器页面点『信任』才生效","建档案 / 模板 / 报告 / 笔记都能对话里做"]},"decor":["numbers"]},
+    {"id":"s14","chapter":"WorkBuddy 适配","style":"demo","actions":["drink_1","drink_2","drink_3","drink_4"],"text":"桌面入口是个启动器：桌宠、面板、托盘都在，开机自启默认关。","card":{"type":"checklist","style":"paper","items":["只监听 127.0.0.1 + 随机 token","右键托盘：开面板 / 自启 / 退出","--status / --stop 管理进程"]},"decor":["tape"]},
+    {"id":"s15","chapter":"WorkBuddy 适配","style":"focus","actions":[],"text":"面板能刷新、建档案、导模板、改设置；生成报告得在对话里喊工具。","card":{"type":"web-shot","style":"polaroid","src":"docs/screenshots/panel.png","annotation":"真实面板截图 · 报告生成按钮并不在面板上"},"decor":["arrow"]},
+    {"id":"s16","chapter":"WorkBuddy 适配","style":"emphasis","actions":["point","idle","point"],"text":"关键在这：启动器开着时，MCP 会把调用转发过去，WorkBuddy 内部只有一个写入点。","card":{"type":"big-quote","style":"note","title":"转发，不是双写","body":"桥活着却没响应会明确报错，不静默降级","stamp":"重点"},"decor":["burst","arrow"]},
+    {"id":"s17","chapter":"WorkBuddy 适配","style":"focus","actions":[],"text":"两边共用同一份实验数据，默认放在用户目录里，看到的是同一批档案。","card":{"type":"before-after","style":"paper","before":"DSH 插件","after":"WorkBuddy MCP → 同一份档案"},"decor":["arrow"]},
+
+    {"id":"s18","chapter":"硬边界与实话","style":"focus","actions":[],"text":"桌宠和面板只有 Windows 有；Mac、Linux 就只有那 25 个工具。","card":{"type":"before-after","style":"paper","before":"Windows：桌宠 + 面板 + 25 工具","after":"Mac / Linux：只有 25 个 MCP 工具"},"decor":[]},
+    {"id":"s19","chapter":"硬边界与实话","style":"focus","actions":[],"text":"DSH 那边还多一套 GUI 本事：指路、真实截图、白名单校验、教学回执。","card":{"type":"web-shot","style":"polaroid","src":"docs/screenshots/guide.png","annotation":"真实指引截图 · UIA 定位 + 高亮 + PrintWindow 截图"},"decor":["arrow"]},
+    {"id":"s20","chapter":"硬边界与实话","style":"emphasis","actions":["confused","idle"],"text":"别误会，140 项软件目录只是能认出来，不等于都支持。","card":{"type":"big-quote","style":"note","title":"目录 ≠ 已支持","body":"认得出软件名，不代表跑得通实验","stamp":"注意"},"decor":["burst","circle"]},
+    {"id":"s21","chapter":"硬边界与实话","style":"focus","actions":[],"text":"真跑过最小实验的 13 项，只读诊断的 1 项，其余 126 项还只是目录条目。","card":{"type":"icon-list","style":"window","items":["13 项 verified-run · 单台 Win11 x64 最小实验","1 项 verified-diagnose · eNSP 只读","126 项 catalog-only · 仅能识别"]},"decor":["numbers"]},
+    {"id":"s22","chapter":"硬边界与实话","style":"demo","actions":["wipe_1","wipe_2","wipe_3","wipe_2"],"text":"还有几件实话：不自动更新、不后台装软件、数据不出本机。","card":{"type":"checklist","style":"paper","items":["插件没有自动更新，也没新版本提醒","兼容建议只是建议，不替你装","经验库与热区只留在这台电脑"]},"decor":[]},
+
+    {"id":"s23","chapter":"收尾","style":"solo","actions":["wave_2","happy","wave_2"],"text":"想用就 clone 仓库或下 Release 包，配一次 MCP，再启动桌面启动器。","card":{"type":"icon-list","style":"note","items":["git clone 或 Release .tgz","配 mcp.json 并点信任","启动 desktop/start.mjs"]},"decor":["stars"]},
+    {"id":"s24","chapter":"收尾","style":"ending","actions":["happy"],"text":"主人，下次做实验，让大肥鱼陪你一起记，报告就不慌啦～","card":null,"decor":["flower","stars"]}
+  ]
+}
