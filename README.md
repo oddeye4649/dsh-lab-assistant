@@ -23,11 +23,15 @@
 
 ![教学循环](docs/screenshots/tutorial.png)
 
-## 宣传片
+## 讲解视频（0.16.1）
 
-[![实验助手宣传片](docs/promo/poster.jpg)](docs/promo/lab-assistant-promo.mp4)
+[![实验助手 0.16.1 讲解](video/out/cover.png)](video/out/video.mp4)
 
-约 70 秒：十种待机小动作、DSH 对话建档案 / 只读环境检查 / 记录实测值、点桌宠判对错、按老师模板生成报告，以及「再来一只桌宠」的多只同屏。配音与背景音乐均由脚本生成，画面全部由插件素材合成（`scripts/promo_tts.py` + `scripts/promo_video.py`）。
+约 **2 分 44 秒**（163.57 s，1920×1080 @ 30fps，24 个镜头）。内容按 **0.16.1 源码逐条核对**后写成，重点讲适配 WorkBuddy 之后「一个仓库、一个链接，DSH 和 WorkBuddy 各装各的」：DSH 侧独有的控件指路 / 真实截图 / 教学回执、WorkBuddy 侧的 25 个 MCP 工具与桌面启动器、报告模板导出，以及「实测值不编造、目录条目不等于已支持」这些边界。当前版本已是 `0.16.2`（只修启动器发现文件的并发窗口，能力范围没变）。
+
+画面全部由项目内素材合成：25 种插件自带桌宠动作图、真实截图 `docs/screenshots/panel.png` 与 `guide.png`、文字卡片，用 Pillow + ffmpeg 本地渲染；没有新画的角色，也没有数字人。配音由 edge-tts（`zh-CN-XiaoyiNeural`）合成，BGM 是本期指定的本地音频（未随仓库分发）；字幕已烧进画面，另附 [`video/out/subtitle.srt`](video/out/subtitle.srt)。
+
+完整工程在 [`video/`](video/)：[B 站文案](video/out/bilibili.md)、[生成报告](video/out/report.md)、分镜时间轴与生成脚本。`video/build/`（逐帧与分片）和 `video/audition/`（音色试听）未入库。这些只是演示素材，插件运行时不读它们，安装体积见下方「体积提示」。
 
 ## 执行规则（硬性，优先于一切）
 
